@@ -1,0 +1,97 @@
+{
+  "projectType": "general",
+  "projectName": "Osiris",
+  "projectDescription": "Cross-platform game hack for Counter-Strike 2 with Panorama-based GUI",
+  "theme": "aspen",
+  "primaryColor": "#ff9800",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "building",
+              "loading"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/overview",
+              "features/combat",
+              "features/hud",
+              "features/visuals",
+              "features/sound"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/config-files",
+              "configuration/gui-usage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Technical",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "technical/architecture",
+              "technical/memory-patterns",
+              "technical/panorama-gui",
+              "technical/hooking"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/building-from-source",
+              "development/project-structure",
+              "development/contributing",
+              "development/technical-features"
+            ]
+          },
+          {
+            "group": "Platform Specific",
+            "pages": [
+              "platforms/windows",
+              "platforms/linux"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Player Info In World - Display player position, health, weapon, and status through walls",
+    "Outline Glow - Customizable outline glow for players, weapons, grenades, bomb, and hostages",
+    "Model Glow - Apply glowing effects to player models, weapons, grenades, and objectives",
+    "Sound Visualization - Visual indicators for footsteps, bomb plant/defuse, weapon sounds",
+    "Bomb Timer - Display bomb countdown, defuse progress, and plant alerts",
+    "Killfeed Preserver - Keep your kills visible in the killfeed throughout the round",
+    "No Scope Inaccuracy Visualization - Visual feedback for sniper rifle accuracy without scope",
+    "Viewmodel Modification - Customize weapon viewmodel FOV",
+    "Panorama-based GUI - Native-looking interface integrated into the game's UI system",
+    "Cross-platform Support - Works on both Windows and Linux"
+  ],
+  "publicApiSurface": [
+    "Combat Features: No Scope Inaccuracy Visualization for sniper rifles",
+    "HUD Features: Bomb Timer, Defusing Alert, Bomb Plant Alert, Killfeed Preserver, Post-round Timer",
+    "Visual Features: Player Info In World, Outline Glow (players, weapons, grenades, bomb, hostages), Model Glow, Viewmodel FOV modification",
+    "Sound Features: Footstep Visualization, Bomb Plant/Beep/Defuse Visualization, Weapon Scope/Reload Sound Visualization",
+    "Config System: ConfigVariable, ConfigToString, ConfigFromString, ConfigFileOperation",
+    "GUI Components: PanoramaGUI with tabbed interface (Combat, HUD, Visuals, Sound tabs)",
+    "Memory Patterns: Windows and Linux pattern scanning for game structures",
+    "Platform API: WindowsPlatformApiImpl, LinuxPlatformApiImpl for OS-specific functionality"
+  ]
+}
