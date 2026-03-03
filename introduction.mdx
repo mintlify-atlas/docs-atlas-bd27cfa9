@@ -1,0 +1,76 @@
+---
+title: Introduction
+description: Cross-platform game hack for Counter-Strike 2 with Panorama-based GUI
+---
+
+# Welcome to Osiris
+
+Osiris is a cross-platform (Windows, Linux) game hack for **Counter-Strike 2** with a GUI and rendering system based on the game's native Panorama UI. It is compatible with the latest game update on Steam.
+
+<Warning>
+  **Use at your own risk.** Using this software may result in VAC (Valve Anti-Cheat) detection and a permanent ban on your Steam account. The developers are not responsible for any consequences.
+</Warning>
+
+## Key features
+
+Osiris provides a comprehensive set of features for Counter-Strike 2:
+
+<CardGroup cols={2}>
+  <Card title="Player information" icon="user">
+    Display player position, health, weapon, and status through walls
+  </Card>
+  <Card title="Outline glow" icon="eye">
+    Customizable outline glow for players, weapons, grenades, bomb, and hostages
+  </Card>
+  <Card title="Sound visualization" icon="volume">
+    Visual indicators for footsteps, bomb plant/defuse, and weapon sounds
+  </Card>
+  <Card title="Bomb timer" icon="bomb">
+    Display bomb countdown, defuse progress, and plant alerts
+  </Card>
+  <Card title="Model glow" icon="lightbulb">
+    Apply glowing effects to player models, weapons, grenades, and objectives
+  </Card>
+  <Card title="Viewmodel modification" icon="gun">
+    Customize weapon viewmodel FOV for improved visibility
+  </Card>
+</CardGroup>
+
+### Additional capabilities
+
+- **Killfeed preserver** - Keep your kills visible in the killfeed throughout the round
+- **No scope inaccuracy visualization** - Visual feedback for sniper rifle accuracy without scope
+- **Panorama-based GUI** - Native-looking interface integrated into the game's UI system
+- **Cross-platform support** - Works on both Windows and Linux
+
+## Technical highlights
+
+Osiris is built with performance and stealth in mind:
+
+- C++ runtime library (CRT) is not used in release builds
+- No heap memory allocations
+- No static imports in release build on Windows
+- No threads are created
+- Exceptions are not used
+- No external dependencies
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    View prerequisites and requirements for Windows and Linux
+  </Card>
+  <Card title="Building" icon="hammer" href="/building">
+    Learn how to compile Osiris from source code
+  </Card>
+  <Card title="Loading" icon="rocket" href="/loading">
+    Understand how to inject the library into the CS2 process
+  </Card>
+  <Card title="Features" icon="star" href="/features/overview">
+    Explore all available features and capabilities
+  </Card>
+</CardGroup>
+
+## License
+
+Osiris is licensed under the MIT License. Copyright (c) 2018-2025 Daniel Krupiński.

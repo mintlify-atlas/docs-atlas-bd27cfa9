@@ -1,0 +1,168 @@
+---
+title: Windows
+description: Windows-specific build instructions, injection methods, and platform details
+---
+
+## Overview
+
+Osiris supports Windows 10 and later (x64 only). The Windows build outputs **Osiris.dll** which must be injected into the CS2 game process using a manual mapping injector.
+
+## Prerequisites
+
+- **Microsoft Visual Studio 2022** with **Desktop development with C++** workload
+- Windows 10 or later (64-bit)
+- Visual Studio platform toolset v143 or later
+
+## Building from Source
+
+<Tabs>
+  <Tab title="Visual Studio">
+    1. Open **Osiris.sln** in Visual Studio 2022
+    2. Set build configuration to **Release | x64**
+    3. Press **Build Solution** (Ctrl+Shift+B)
+    4. The compiled **Osiris.dll** will be in the output directory
+  </Tab>
+  <Tab title="MSBuild (CLI)">
+    ```bash
+    # Using default MSVC toolset
+    msbuild Osiris.sln /p:Platform=x64 /p:Configuration=Release
+
+    # Using ClangCL toolset
+    msbuild Osiris.sln /p:Platform=x64 /p:Configuration=Release /p:PlatformToolset=ClangCL
+    ```
+  </Tab>
+  <Tab title="CMake">
+    ```bash
+    # Configure with MSVC
+    cmake -A x64 -B build
+
+    # Configure with ClangCL
+    cmake -A x64 -T ClangCL -B build
+
+    # Build
+    cmake --build build --config Release
+    ```
+  </Tab>
+</Tabs>
+
+## Output File
+
+The Windows build produces **Osiris.dll**, a dynamically linked library (DLL) that must be injected into the CS2 process.
+
+File location:
+- **Visual Studio**: `x64/Release/Osiris.dll`
+- **CMake**: `build/Source/Release/Osiris.dll`
+
+## Injection Methods
+
+### Manual Mapping (Required)
+
+Counter-Strike 2 blocks standard `LoadLibrary` injection, so you **must** use a manual mapping (reflective DLL injection) injector.
+
+<Warning>
+  **Known Detected Injectors**
+  
+  The following injectors are **known to be detected** by VAC:
+  - Xenos
+  - Extreme Injector
+  
+  Using these injectors will result in a VAC ban.
+</Warning>
+
+### Entry Point
+
+On Windows, Osiris initializes through the standard DLL entry point:
+
+```cpp
+extern "C" std::size_t DllMain(HMODULE, DWORD reason, LPVOID) noexcept
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        GlobalContext::initializeInstance();
+    return TRUE;
+}
+```
+
+See dllmain.cpp:23-28
+
+## Platform-Specific Implementation
+
+### Windows Platform API
+
+Osiris uses custom Windows API wrappers located in `Source/Platform/Windows/`:
+
+- **WindowsPlatformApiImpl.h** - Core platform API implementation
+- **WindowsDynamicLibrary.h** - Dynamic library loading
+- **UserDocumentsFolderPath.h** - Configuration file path resolution
+- **Syscalls/** - Direct syscall implementation to avoid API hooks
+
+### Configuration Storage
+
+Configuration files are stored in:
+
+```
+%APPDATA%\OsirisCS2\configs\default.cfg
+```
+
+The path is determined using `SHGetKnownFolderPath(FOLDERID_Documents, ...)` from Shell32.dll.
+
+### Technical Features
+
+- No C++ Runtime Library (CRT) in release builds
+- No static imports (dynamic API resolution via PEB)
+- Direct syscalls to avoid usermode hooks
+- RTTI parsing for virtual method table location
+- Portable Executable (PE) parsing
+
+## Build Configurations
+
+<Tabs>
+  <Tab title="Release">
+    Optimized build with:
+    - No CRT dependencies
+    - Dynamic API resolution
+    - Size optimization
+    - No debugging symbols
+  </Tab>
+  <Tab title="Debug">
+    Development build with:
+    - Full debugging symbols
+    - Runtime checks enabled
+    - Slower execution
+    - Easier to debug
+  </Tab>
+</Tabs>
+
+## Common Issues
+
+### Injection Failed
+
+If injection fails:
+- Ensure you're using a manual mapping injector
+- Verify CS2 is running and not in secure mode
+- Check that Osiris.dll is the correct 64-bit build
+- Try running the injector as administrator
+
+### VAC Detection
+
+<Warning>
+  **VAC Risk**
+  
+  Using any game modification carries the risk of VAC detection and permanent ban. Always:
+  - Use a manual mapping injector
+  - Avoid known-detected injectors (Xenos, Extreme Injector)
+  - Keep your injector and Osiris up to date
+</Warning>
+
+### Build Errors
+
+If you encounter build errors:
+- Ensure Visual Studio 2022 is fully updated
+- Verify the "Desktop development with C++" workload is installed
+- Check that you're targeting x64 platform
+- Clean the solution and rebuild
+
+## See Also
+
+- [Linux Platform](/platforms/linux) - Linux-specific instructions
+- [Building](/building) - General build information
+- [Installation](/installation) - Installation and setup

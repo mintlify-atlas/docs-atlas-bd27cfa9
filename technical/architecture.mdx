@@ -1,0 +1,273 @@
+---
+title: Architecture
+description: Overall architecture and design of Osiris
+---
+
+Osiris is built with a unique architecture designed for stealth, efficiency, and cross-platform compatibility. The codebase demonstrates advanced C++ techniques and unconventional design patterns optimized for game modification.
+
+## Core Design Principles
+
+Osiris follows several strict technical constraints that distinguish it from typical C++ applications:
+
+### No C Runtime Library (CRT)
+
+The release builds do not link against the C runtime library. This reduces the binary footprint and avoids potential detection vectors.
+
+### No Heap Allocations
+
+All memory is pre-allocated from a static buffer. The system uses a custom memory allocator with a free region list:
+
+```cpp
+alignallocators::FreeMemoryRegionList> {
+    static constinit std::byte storage[build::MEMORY_CAPACITY];
+    globalContext.initialize(storage, ...);
+}
+```
+
+Memory capacity is fixed at compile time:
+
+```cpp
+// Source/BuildConfig.h
+constexpr auto MEMORY_CAPACITY = 1'000'000;  // 1MB
+```
+
+### No Static Imports (Windows)
+
+On Windows, the DLL has no static imports in the import table. All API functions are resolved dynamically at runtime through pattern scanning.
+
+### No Threads
+
+The application runs entirely on the game's threads, hooking into the game's execution flow rather than creating new threads.
+
+### No Exceptions
+
+Exception handling is disabled (`noexcept` everywhere). Error handling uses return values and assertions.
+
+## Global Context Architecture
+
+The entire application state is managed through a singleton `GlobalContext` that uses a two-phase initialization pattern.
+
+### Initialization Phases
+
+```cpp
+// Source/dllmain.cpp
+extern "C" std::size_t DllMain(HMODULE, DWORD reason, LPVOID) noexcept
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        GlobalContext::initializeInstance();
+    return TRUE;
+}
+```
+
+#### Phase 1: Partial Context
+
+The `PartialGlobalContext` is created during DLL load and performs minimal initialization:
+
+```cpp
+// Source/GlobalContext/PartialGlobalContext.h
+struct PartialGlobalContext {
+    explicit PartialGlobalContext(DynamicLibrary clientDLL, DynamicLibrary panoramaDLL, SdlDll sdlDLL) noexcept
+        : patternFinders{
+            PatternFinder<PatternNotFoundLogger>{clientDLL.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::TIER0_DLL}.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::SOUNDSYSTEM_DLL}.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::FILESYSTEM_DLL}.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{panoramaDLL.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{sdlDLL.getCodeSection().raw()},
+            PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::SCENESYSTEM_DLL}.getCodeSection().raw()}}
+        , clientDLL{clientDLL}
+        , panoramaDLL{panoramaDLL}
+        , peepEventsHook{MemoryPatterns{patternFinders}.sdlPatterns().peepEventsPointer(sdlDLL.peepEvents())}
+    {
+    }
+
+    PatternFinders patternFinders;
+    DynamicLibrary clientDLL;
+    DynamicLibrary panoramaDLL;
+    PeepEventsHook peepEventsHook;
+};
+```
+
+Key characteristics:
+- Loads game DLLs (client.dll, panorama.dll, SDL3.dll, etc.)
+- Initializes pattern finders for each module
+- Sets up the PeepEvents hook (entry point for game thread execution)
+- Minimal state, safe to run during DLL loading
+
+#### Phase 2: Full Context
+
+The `FullGlobalContext` is created lazily from the game thread and contains the complete application state:
+
+```cpp
+// Source/GlobalContext/FullGlobalContext.h
+struct FullGlobalContext {
+    FullGlobalContext(PeepEventsHook peepEventsHook, DynamicLibrary clientDLL, DynamicLibrary panoramaDLL, const MemoryPatterns& memoryPatterns, Tier0Dll tier0Dll) noexcept
+        : patternSearchResults{memoryPatterns}
+        , fileNameSymbolTableState{tier0Dll}
+        , memAllocState{tier0Dll}
+        , stylePropertySymbolsAndVMTs{StylePropertySymbolMap{memoryPatterns.panelStylePatterns().stylePropertiesSymbols()}, VmtFinder{panoramaDLL.getVmtFinderParams()}}
+        , hooks{
+            peepEventsHook,
+            patternSearchResults.get<ViewRenderPointer>(),
+            VmtLengthCalculator{clientDLL.getCodeSection(), clientDLL.getVmtSection()}}
+    {
+    }
+
+    OsirisDirectoryPath osirisDirectoryPath;
+    ConfigState configState;
+    AllMemoryPatternSearchResults patternSearchResults;
+    FileNameSymbolTableState fileNameSymbolTableState;
+    GlowSceneObjectState glowSceneObjectState;
+    HudState hudState;
+    MemAllocState memAllocState;
+    StylePropertiesSymbolsAndVMTs stylePropertySymbolsAndVMTs;
+    std::optional<ConVarsBase> conVars;
+    std::optional<PanoramaSymbols> panoramaSymbols;
+    Hooks hooks;
+    SoundWatcherState soundWatcherState;
+    FeaturesStates featuresStates;
+    PanoramaGuiState panoramaGuiState;
+    BombStatusPanelState bombStatusPanelState;
+    InWorldPanelsState inWorldPanelsState;
+    GlowSceneObjectsState glowSceneObjectsState;
+    EntityClassifier entityClassifier;
+    PlayerInfoPanelCacheState playerInfoPanelCacheState;
+    PlayerModelGlowPreviewState playerModelGlowPreviewState;
+    WeaponModelGlowPreviewState weaponModelGlowPreviewState;
+};
+```
+
+This contains:
+- All memory pattern search results
+- Game state (config, features, HUD)
+- All hooks (ViewRender, PeepEvents, ClientMode)
+- Panorama GUI state
+- Feature-specific states (glow, player info, etc.)
+
+### Deferred Initialization Pattern
+
+```cpp
+// Source/GlobalContext/GlobalContext.h:80
+void initCompleteContextFromGameThread() noexcept
+{
+    const auto partialContext = deferredCompleteContext.partial();
+    deferredCompleteContext.makeComplete(
+        partialContext.peepEventsHook,
+        partialContext.clientDLL,
+        partialContext.panoramaDLL,
+        MemoryPatterns{partialContext.patternFinders},
+        Tier0Dll{}
+    );
+}
+```
+
+The deferred pattern ensures:
+1. DLL loading is fast and safe
+2. Game initialization completes before full initialization
+3. All heavy operations run on the game thread
+
+## Memory Management
+
+Osiris uses a custom memory allocator based on a free region list:
+
+```cpp
+// Source/MemoryAllocation/FreeMemoryRegionList.h
+class FreeMemoryRegionList {
+public:
+    explicit FreeMemoryRegionList(std::span<std::byte> memory) noexcept
+        : firstFreeRegion{ createInitialFreeRegion(memory) }
+    {
+    }
+
+    [[nodiscard]] std::byte* allocate(std::size_t size) noexcept
+    {
+        assert(size >= minimumAllocationSize());
+        assert(size % minimumAlignment() == 0);
+
+        if (firstFreeRegion == nullptr) [[unlikely]]
+            return nullptr;
+
+        const auto [claimedRegion, regionToReplaceClaimed] = firstFreeRegion->claimMemory(size);
+        if (claimedRegion == firstFreeRegion)
+            firstFreeRegion = regionToReplaceClaimed;
+        return reinterpret_cast<std::byte*>(claimedRegion);
+    }
+
+    void deallocate(std::byte* pointer, std::size_t size) noexcept
+    {
+        assert(MemorySection{ memory }.contains(reinterpret_cast<std::uintptr_t>(pointer), size));
+        firstFreeRegion = createOrAddRegion({ pointer, size });
+    }
+};
+```
+
+All allocations come from a pre-allocated 1MB buffer, ensuring:
+- No runtime heap allocations
+- Predictable memory usage
+- Memory leak detection in debug builds
+- No dependency on CRT allocator
+
+## Cross-Platform Support
+
+Osiris supports both Windows and Linux through platform abstraction:
+
+```cpp
+// Source/dllmain.cpp
+#if IS_WIN64()
+extern "C" std::size_t DllMain(HMODULE, DWORD reason, LPVOID) noexcept
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        GlobalContext::initializeInstance();
+    return TRUE;
+}
+
+#elif IS_LINUX()
+void __attribute__((constructor)) DllEntryPoint()
+{
+    GlobalContext::initializeInstance();
+}
+#endif
+```
+
+Platform-specific patterns are organized separately:
+- `Source/MemoryPatterns/Windows/` - Windows memory patterns
+- `Source/MemoryPatterns/Linux/` - Linux memory patterns
+
+## Execution Flow
+
+1. **DLL Load**: `DllMain` or `DllEntryPoint` called
+2. **Partial Init**: Create `PartialGlobalContext`, install PeepEvents hook
+3. **Game Thread Entry**: Hook intercepts SDL event polling
+4. **Full Init**: Create `FullGlobalContext` from game thread
+5. **Runtime**: Hooks execute on game frames, GUI runs in Panorama
+6. **Unload**: Restore hooks, clean up state
+
+## State Management
+
+All state is stored in the global context with no static/global variables (except the context itself):
+
+```cpp
+// Source/GlobalContext/GlobalContext.h:96
+static constinit ManuallyDestructible<GlobalContext> globalContext;
+```
+
+This ensures:
+- Single source of truth
+- Easy access from any component
+- Clean shutdown
+- No initialization order issues
+
+## Type Safety
+
+Osiris extensively uses strong typing and templates for compile-time safety:
+
+- Type-safe entity handles
+- Compile-time pattern validation
+- Template-based factory methods
+- `constexpr` and `consteval` for compile-time computation
+
+## Related Topics
+
+- [Memory Patterns](/technical/memory-patterns) - Pattern scanning system
+- [Panorama GUI](/technical/panorama-gui) - User interface integration
+- [Hooking](/technical/hooking) - Hook implementation details

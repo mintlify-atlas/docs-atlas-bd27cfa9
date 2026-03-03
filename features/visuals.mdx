@@ -1,0 +1,373 @@
+---
+title: Visual Features
+description: Visual enhancements including player information, glow effects, and viewmodel customization
+---
+
+Visual features provide enhanced visibility and information display for players, entities, and objects in the game world.
+
+## Player Info In World
+
+<Accordion title="Overview">
+  <Note>
+    **Location:** Visuals > Player Info In World
+  </Note>
+
+  Displays comprehensive information about players in the 3D game world, including health, weapons, position indicators, and status icons.
+
+  ### Master Switch
+
+  **Player Information Through Walls**
+  - Options: `Enemies`, `All Players`, `Off`
+  - Default: `Off`
+  - Controls which players show information panels
+
+  **Implementation:** `~/workspace/source/Source/Features/Visuals/PlayerInfoInWorld/PlayerInfoInWorld.h:21`
+</Accordion>
+
+<Accordion title="Player Position">
+  Shows a directional arrow indicating player position in the world.
+
+  ### Configuration
+
+  **Show Player Position Arrow**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Player Position Arrow Color**
+  - Options: `Player / Team Color`, `Team Color`
+  - Default: `Player / Team Color`
+  - `Player / Team Color`: Uses individual player colors in competitive, team colors otherwise
+  - `Team Color`: Always uses team-based coloring (T/CT)
+
+  ### Features
+
+  - Arrow points to player's location
+  - Color customizable based on preference
+  - Visible through walls (when master switch enabled)
+</Accordion>
+
+<Accordion title="Player Health">
+  Displays the player's current health value.
+
+  ### Configuration
+
+  **Show Player Health**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Player Health Text Color**
+  - Options: `Health-based`, `White`
+  - Default: `Health-based`
+  - `Health-based`: Color changes based on HP amount (green to red gradient)
+  - `White`: Static white color for all health values
+</Accordion>
+
+<Accordion title="Player Weapon">
+  Shows information about the player's active weapon.
+
+  ### Configuration
+
+  **Show Player Active Weapon Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Displays icon of currently held weapon
+
+  **Show Player Active Weapon Ammo**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Shows ammunition count in current magazine
+
+  **Show Bomb Carrier Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Special icon when player is carrying the bomb
+
+  **Show Bomb Planting Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Icon appears when player is planting the bomb
+</Accordion>
+
+<Accordion title="Status Icons">
+  Displays various status icons indicating player actions and states.
+
+  ### Configuration
+
+  **Show Defuse Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Appears when player is defusing the bomb
+
+  **Show Picking Up Hostage Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Shown when player is picking up a hostage
+
+  **Show Rescuing Hostage Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Displayed when player is at rescue zone with hostage
+
+  **Show Blinded By Flashbang Icon**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Indicates when player is blinded by flashbang
+</Accordion>
+
+## Outline Glow
+
+<Accordion title="Overview">
+  <Note>
+    **Location:** Visuals > Outline Glow
+  </Note>
+
+  Applies outline-style glow effects to players and entities, making them visible through walls and easier to spot.
+
+  ### Master Switch
+
+  **Master Switch**
+  - Options: `On`, `Off`
+  - Default: `Off`
+  - Must be enabled for any outline glow features to work
+
+  **Implementation:** `~/workspace/source/Source/Features/Visuals/OutlineGlow/OutlineGlow.h:31`
+</Accordion>
+
+<Accordion title="Player Outline Glow">
+  ### Configuration
+
+  **Glow Players**
+  - Options: `Enemies`, `All Players`, `Off`
+  - Default: `Off`
+
+  **Player Glow Color**
+  - Options: `Player / Team Color`, `Team Color`, `Health-based`, `Enemy / Ally`
+  - Default: `Player / Team Color`
+
+  ### Color Modes
+
+  Each color mode has customizable hue sliders:
+
+  **Player / Team Color Mode:**
+  - Player Blue Hue (191-240)
+  - Player Green Hue (110-140)
+  - Player Yellow Hue (47-60)
+  - Player Orange Hue (11-20)
+  - Player Purple Hue (250-280)
+
+  **Team Color Mode:**
+  - Team T Hue (30-40)
+  - Team CT Hue (210-230)
+
+  **Health-based Mode:**
+  - High Health Hue (0-359)
+  - Low Health Hue (0-359)
+
+  **Enemy / Ally Mode:**
+  - Enemy Hue (0-359)
+  - Ally Hue (0-359)
+</Accordion>
+
+<Accordion title="Weapon Outline Glow">
+  ### Configuration
+
+  **Glow Weapons on Ground Nearby**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Grenade Projectiles**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Grenade Colors
+
+  Each grenade type has customizable hue:
+  - Flashbang Hue (191-250)
+  - HE Grenade Hue (300-359)
+  - Smoke Grenade Hue (110-140)
+  - Molotov / Incendiary Grenade Hue (20-60)
+</Accordion>
+
+<Accordion title="Bomb & Defuse Kit Outline Glow">
+  ### Configuration
+
+  **Glow Dropped Bomb**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Ticking Bomb**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Defuse Kits on Ground Nearby**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Color Customization
+
+  - Dropped Bomb Hue (0-359)
+  - Ticking Bomb Hue (0-359)
+  - Defuse Kit Hue (0-359)
+</Accordion>
+
+<Accordion title="Hostage Outline Glow">
+  ### Configuration
+
+  **Glow Hostages**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Hostage Hue**
+  - Range: 0-359
+  - Customizes the color of hostage outline glow
+</Accordion>
+
+## Model Glow
+
+<Accordion title="Overview">
+  <Note>
+    **Location:** Visuals > Model Glow
+  </Note>
+
+  Applies glow effects directly to 3D models, creating a colored highlight effect on player models and items. The Visuals tab includes a live preview panel showing how the glow appears on player models and weapons.
+
+  ### Master Switch
+
+  **Master Switch**
+  - Options: `On`, `Off`
+  - Default: `Off`
+  - Must be enabled for any model glow features to work
+
+  ### Preview Panel
+
+  The Model Glow tab includes real-time previews:
+  - Two player model previews (Terrorist and Counter-Terrorist)
+  - Weapon model preview
+  - Grenade projectile previews (Flashbang, HE, Smoke, Incendiary)
+
+  **Implementation:** `~/workspace/source/Source/Features/Visuals/ModelGlow/ModelGlow.h:29`
+</Accordion>
+
+<Accordion title="Player Model Glow">
+  ### Configuration
+
+  **Glow Player Models**
+  - Options: `Enemies`, `All Players`, `Off`
+  - Default: `Off`
+
+  **Player Model Glow Color Mode**
+  - Options: `Player / Team Color`, `Team Color`, `Health-based`, `Enemy / Ally`
+  - Default: `Player / Team Color`
+
+  ### Color Customization
+
+  Identical hue sliders to Outline Glow for consistency:
+
+  **Player / Team Color Mode:**
+  - Player Blue Hue (191-240)
+  - Player Green Hue (110-140)
+  - Player Yellow Hue (47-60)
+  - Player Orange Hue (11-20)
+  - Player Purple Hue (250-280)
+
+  **Team Color Mode:**
+  - Team T Hue (30-40)
+  - Team CT Hue (210-230)
+
+  **Health-based Mode:**
+  - High Health Hue (0-359)
+  - Low Health Hue (0-359)
+
+  **Enemy / Ally Mode:**
+  - Enemy Hue (0-359)
+  - Ally Hue (0-359)
+
+  ### Technical Details
+
+  Model glow applies the spawn protection effect (colored glow shader) recursively to all model components. The effect uses full saturation and brightness for vibrant colors.
+</Accordion>
+
+<Accordion title="Weapon Model Glow">
+  ### Configuration
+
+  **Glow Weapon Models on Ground**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Grenade Projectile Models**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Grenade Colors
+
+  Each grenade type has customizable hue:
+  - Flashbang Hue (191-250)
+  - HE Grenade Hue (300-359)
+  - Smoke Grenade Hue (110-140)
+  - Molotov / Incendiary Grenade Hue (20-60)
+</Accordion>
+
+<Accordion title="Bomb & Defuse Kit Model Glow">
+  ### Configuration
+
+  **Glow Dropped Bomb Model**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Ticking Bomb Model**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  **Glow Defuse Kit Models on Ground**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Color Customization
+
+  - Dropped Bomb Hue (0-359)
+  - Ticking Bomb Hue (0-359)
+  - Defuse Kit Hue (0-359)
+</Accordion>
+
+## Viewmodel
+
+<Accordion title="Viewmodel Customization">
+  <Note>
+    **Location:** Visuals > Viewmodel
+  </Note>
+
+  Customize the field of view (FOV) of your weapon viewmodel for better visibility and personal preference. The Viewmodel tab includes a live preview showing how changes affect weapon appearance.
+
+  ### Configuration
+
+  **Master Switch**
+  - Options: `On`, `Off`
+  - Default: `Off`
+  - Must be enabled for viewmodel modifications to apply
+
+  **Modify Viewmodel Fov**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - Enables FOV customization
+
+  **Fov**
+  - Range: 40-90
+  - Default: 60 (game default)
+  - Slider with text input for precise adjustment
+
+  ### Features
+
+  - Real-time preview panel showing weapon model
+  - Automatically disabled when scoped (maintains default scoped FOV)
+  - Smooth updates when changing FOV values
+  - Works with all weapon types
+
+  ### Use Cases
+
+  - Increase FOV to see more of the screen (weapon further away)
+  - Decrease FOV for larger weapon model (closer to default CS:GO feel)
+  - Personal preference and comfort adjustment
+  - Better peripheral vision during combat
+
+  **Implementation:** `~/workspace/source/Source/Features/Visuals/ViewmodelMod/ViewmodelMod.h:16`
+</Accordion>

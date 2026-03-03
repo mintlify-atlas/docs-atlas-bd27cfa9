@@ -1,0 +1,148 @@
+---
+title: Building from Source
+description: Detailed instructions for compiling Osiris on Windows and Linux
+---
+
+## Prerequisites
+
+<Tabs>
+  <Tab title="Windows">
+    - **Microsoft Visual Studio 2022** with **Desktop development with C++** workload
+  </Tab>
+  <Tab title="Linux">
+    - **CMake 3.24** or newer
+    - **g++ 11 or newer** or **clang++ 18 or newer**
+  </Tab>
+</Tabs>
+
+## Build Configuration
+
+Osiris uses the following build configuration:
+
+- **C++ Standard**: C++20 (required)
+- **CMake Version**: 3.24 minimum
+- **Position Independent Code**: Enabled
+- **Symbol Visibility**: Hidden (for both C and C++)
+
+### Compiler Flags
+
+<Tabs>
+  <Tab title="Windows (MSVC)">
+    **Debug Mode:**
+    - Runtime Library: MultiThreadedDebugDLL
+    - Exception Handling: Enabled
+
+    **Release Mode:**
+    - `/sdl-`: Disable Security Development Lifecycle checks
+    - `/GS-`: Disable buffer security checks
+    - `/W4`: Warning level 4
+    - No exceptions (exception handling flags removed)
+    - Custom CRT implementation (no default libraries)
+    - Custom entry point: `DllMain`
+    - `_USE_STD_VECTOR_ALGORITHMS=0`: Disable standard vector algorithms
+  </Tab>
+  <Tab title="Linux (GCC/Clang)">
+    **Debug Mode:**
+    - `-Wall`: All warnings enabled
+    - Standard exception handling and stack protection
+
+    **Release Mode:**
+    - `-Wall`: All warnings enabled
+    - `-fno-stack-protector`: Disable stack protection
+    - `-fno-exceptions`: Disable exception handling
+    - `-fno-asynchronous-unwind-tables`: No async unwind tables
+    - `-fno-unwind-tables`: No unwind tables
+    - Linker flags: `--no-undefined -z noexecstack`
+    - Linked against C library only (no standard C++ library)
+    - Binary stripped after build
+  </Tab>
+</Tabs>
+
+## Compiling
+
+<Tabs>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open the solution">
+        Open **Osiris.sln** in Visual Studio 2022
+      </Step>
+      <Step title="Set build configuration">
+        Set build configuration to **Release | x64** from the configuration dropdown
+      </Step>
+      <Step title="Build">
+        Press **Build Solution** (or press `Ctrl+Shift+B`)
+      </Step>
+      <Step title="Locate output">
+        You should receive **Osiris.dll** in the output directory
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Configure with CMake">
+        ```bash
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        ```
+      </Step>
+      <Step title="Build">
+        ```bash
+        cmake --build build -j $(nproc --all)
+        ```
+      </Step>
+      <Step title="Locate output">
+        After building, you should receive **libOsiris.so** in the **build/Source/** directory
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Optional: Enable Tests
+
+To build with tests enabled:
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS="unit;functional" -B build
+cmake --build build -j $(nproc --all)
+```
+
+The `ENABLE_TESTS` variable accepts a list of test types to enable (e.g., "unit;functional").
+
+## Assembly Components
+
+Osiris includes platform-specific assembly files:
+
+<Tabs>
+  <Tab title="Windows">
+    - **WindowsSyscall.asm** (MASM): Used for direct system calls
+    - **CRTWindows.cpp**: Custom C Runtime implementation for release builds
+  </Tab>
+  <Tab title="Linux">
+    - Uses AT&T assembly syntax where needed
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="CMake version too old">
+    Ensure you have CMake 3.24 or newer installed. Check your version with:
+    ```bash
+    cmake --version
+    ```
+  </Accordion>
+  <Accordion title="Compiler not supported">
+    On Linux, ensure you're using:
+    - GCC 11 or newer, or
+    - Clang 18 or newer
+    
+    Check your compiler version:
+    ```bash
+    g++ --version
+    # or
+    clang++ --version
+    ```
+  </Accordion>
+  <Accordion title="Build fails on Windows">
+    Ensure you have Visual Studio 2022 with the **Desktop development with C++** workload installed.
+  </Accordion>
+</AccordionGroup>

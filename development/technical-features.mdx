@@ -1,0 +1,348 @@
+---
+title: Technical Features
+description: Advanced technical features and architecture constraints of Osiris
+---
+
+## Overview
+
+Osiris implements several advanced technical features that make it unique. These constraints ensure minimal footprint, maximum performance, and enhanced detection avoidance.
+
+## Core Technical Constraints
+
+### No C Runtime Library (CRT)
+
+<Warning>
+The C++ runtime library (CRT) is **not used** in release builds.
+</Warning>
+
+Osiris implements its own minimal runtime on Windows to avoid dependencies on the standard C/C++ runtime library.
+
+**Implementation Details:**
+
+- **Windows**: Custom CRT implementation in `Platform/Windows/CRTWindows.cpp`
+- **Linux**: Links only against the C library (`-lc`), not the C++ standard library
+- **Entry Point**: Custom `DllMain` entry point instead of standard CRT initialization
+
+**Benefits:**
+
+<CardGroup cols={2}>
+  <Card title="Smaller Binary Size" icon="compress">
+    No CRT bloat results in significantly smaller DLL/SO files
+  </Card>
+  <Card title="Fewer Dependencies" icon="link-slash">
+    No runtime library dependencies to worry about
+  </Card>
+  <Card title="Faster Loading" icon="bolt">
+    No CRT initialization overhead
+  </Card>
+  <Card title="Better Control" icon="sliders">
+    Complete control over initialization and shutdown
+  </Card>
+</CardGroup>
+
+**Compiler Flags:**
+
+<CodeGroup>
+```bash Windows (MSVC)
+/nodefaultlib        # Don't link default libraries
+/ENTRY:"DllMain"      # Custom entry point
+/sdl-                # Disable SDL checks
+/GS-                 # Disable buffer security
+```
+
+```bash Linux (GCC/Clang)
+-nostdlib            # Don't use standard library
+-lc                  # Link only C library
+```
+</CodeGroup>
+
+### No Heap Memory Allocations
+
+<Warning>
+Osiris does **not** perform heap memory allocations at runtime.
+</Warning>
+
+All memory is allocated statically or from pre-allocated memory pools managed by the custom allocation system in `MemoryAllocation/`.
+
+**Why No Heap?**
+
+<AccordionGroup>
+  <Accordion title="Predictable Performance">
+    Static allocation eliminates allocation/deallocation overhead and prevents memory fragmentation.
+  </Accordion>
+  
+  <Accordion title="No Memory Leaks">
+    Without dynamic allocation, memory leaks are impossible.
+  </Accordion>
+  
+  <Accordion title="Deterministic Behavior">
+    Memory layout is known at compile time, making debugging easier.
+  </Accordion>
+  
+  <Accordion title="Reduced Attack Surface">
+    No heap-based vulnerabilities or corruption issues.
+  </Accordion>
+</AccordionGroup>
+
+**Implications for Developers:**
+
+```cpp
+// ❌ These are NOT allowed:
+new Object();
+delete ptr;
+malloc(size);
+free(ptr);
+std::vector<T> v;  // Uses heap internally
+std::string s;     // Uses heap internally
+
+// ✅ Use these instead:
+static Object obj;
+StaticVector<T, MaxSize> v;  // Fixed-size vector
+FixedString<MaxLength> s;    // Fixed-size string
+```
+
+### No Static Imports (Windows)
+
+<Warning>
+Windows release builds have **no static imports**.
+</Warning>
+
+All Windows API functions are loaded dynamically at runtime, making the import table empty.
+
+**Implementation:**
+
+- **System Calls**: Direct syscalls via `Platform/Windows/Syscalls/WindowsSyscall.asm`
+- **Dynamic Loading**: Functions loaded via custom dynamic resolution
+- **No Import Table**: Empty IAT (Import Address Table)
+
+**Benefits:**
+
+<CardGroup cols={2}>
+  <Card title="Stealth" icon="user-secret">
+    Harder to detect by static analysis tools
+  </Card>
+  <Card title="Flexibility" icon="shuffle">
+    Can choose which APIs to use at runtime
+  </Card>
+  <Card title="Compatibility" icon="check">
+    Better handling of missing or hooked APIs
+  </Card>
+  <Card title="Security" icon="shield">
+    Avoid IAT hooking attacks
+  </Card>
+</CardGroup>
+
+**Link Flags:**
+
+```bash
+/nodefaultlib        # No default libraries
+```
+
+### No Thread Creation
+
+<Warning>
+Osiris does **not** create any new threads.
+</Warning>
+
+All code executes on existing game threads, typically through hooks and callbacks.
+
+**Rationale:**
+
+<AccordionGroup>
+  <Accordion title="Simplicity">
+    No thread synchronization complexity (mutexes, locks, etc.)
+  </Accordion>
+  
+  <Accordion title="Stability">
+    Reduces risk of race conditions and deadlocks
+  </Accordion>
+  
+  <Accordion title="Lower Detection Risk">
+    New threads can be suspicious to anti-cheat systems
+  </Accordion>
+  
+  <Accordion title="Resource Efficiency">
+    No thread overhead or context switching
+  </Accordion>
+</AccordionGroup>
+
+**How Work Gets Done:**
+
+- **Hooks**: Function hooks intercept game code execution
+- **Callbacks**: Register callbacks with game systems
+- **Frame Processing**: Work is done during game frame updates
+
+### No Exception Handling
+
+<Warning>
+Exceptions are **not used** in release builds.
+</Warning>
+
+Exception handling is disabled to reduce binary size and improve performance.
+
+**Compiler Flags:**
+
+<CodeGroup>
+```bash Windows (MSVC)
+# Exception handling flags removed
+/EHsc removed from flags
+```
+
+```bash Linux (GCC/Clang)
+-fno-exceptions
+-fno-asynchronous-unwind-tables
+-fno-unwind-tables
+```
+</CodeGroup>
+
+**Error Handling Alternatives:**
+
+```cpp
+// ❌ Don't use exceptions
+try {
+    operation();
+} catch (const std::exception& e) {
+    handleError();
+}
+
+// ✅ Use return codes
+if (!operation()) {
+    handleError();
+    return false;
+}
+
+// ✅ Use optional types
+if (auto result = operation()) {
+    use(*result);
+} else {
+    handleError();
+}
+```
+
+### No External Dependencies
+
+<Warning>
+Osiris has **no external dependencies**.
+</Warning>
+
+The entire codebase is self-contained with no third-party libraries.
+
+**What This Means:**
+
+<CardGroup cols={2}>
+  <Card title="Self-Contained" icon="box">
+    Everything needed is in the repository
+  </Card>
+  <Card title="No Package Managers" icon="ban">
+    No vcpkg, Conan, or npm needed
+  </Card>
+  <Card title="Simple Builds" icon="hammer">
+    Just compiler and CMake required
+  </Card>
+  <Card title="Full Control" icon="code">
+    Complete control over all code
+  </Card>
+</CardGroup>
+
+**Platform APIs:**
+
+Osiris only uses:
+- Operating system APIs (Win32, POSIX)
+- Game engine interfaces (Panorama UI, Source 2 SDK)
+- Standard C library (minimal usage)
+
+## Additional Technical Details
+
+### Symbol Visibility
+
+```cmake
+CXX_VISIBILITY_PRESET hidden
+C_VISIBILITY_PRESET hidden
+```
+
+All symbols are hidden by default, reducing binary size and preventing symbol conflicts.
+
+### Position Independent Code
+
+```cmake
+POSITION_INDEPENDENT_CODE ON
+```
+
+Enables ASLR (Address Space Layout Randomization) support and is required for shared libraries on modern systems.
+
+### Security Hardening (Release vs Debug)
+
+<Tabs>
+  <Tab title="Release Build">
+    - Stack protection: **Disabled** (`/GS-` or `-fno-stack-protector`)
+    - SDL checks: **Disabled** (`/sdl-`)
+    - Exceptions: **Disabled**
+    - RTTI: **Minimal**
+    - Optimizations: **Maximum**
+  </Tab>
+  <Tab title="Debug Build">
+    - Stack protection: **Enabled**
+    - SDL checks: **Enabled**
+    - Exceptions: **Enabled**
+    - RTTI: **Enabled**
+    - Optimizations: **Disabled**
+  </Tab>
+</Tabs>
+
+## Performance Characteristics
+
+<CardGroup cols={3}>
+  <Card title="Fast Load Time" icon="rocket">
+    No CRT initialization, minimal imports
+  </Card>
+  <Card title="Low Memory Usage" icon="memory">
+    Static allocation, no heap fragmentation
+  </Card>
+  <Card title="Minimal Overhead" icon="gauge">
+    No exception handling, no thread synchronization
+  </Card>
+  <Card title="Small Binary" icon="file">
+    No CRT, hidden symbols, stripped binaries
+  </Card>
+  <Card title="Fast Execution" icon="bolt">
+    Optimized release builds, no runtime checks
+  </Card>
+  <Card title="Predictable" icon="chart-line">
+    Deterministic behavior, no allocations
+  </Card>
+</CardGroup>
+
+## Binary Size Comparison
+
+The technical constraints result in very small binaries:
+
+- **Without these optimizations**: ~2-3 MB typical
+- **With Osiris optimizations**: Significantly smaller due to:
+  - No CRT bloat
+  - No exception handling tables
+  - No unwind tables
+  - Hidden/stripped symbols
+  - No external dependencies
+
+## Development Implications
+
+<Warning>
+These constraints require careful programming:
+</Warning>
+
+<Check>Plan memory usage at design time</Check>
+<Check>Use fixed-size containers and buffers</Check>
+<Check>Handle errors via return codes or optional types</Check>
+<Check>Hook into game threads instead of creating new ones</Check>
+<Check>Load Windows APIs dynamically</Check>
+<Check>Test both Debug and Release builds regularly</Check>
+
+## Compatibility
+
+These technical features are compatible with:
+
+- **Windows 10/11** (x64)
+- **Linux** (x64) with kernel 4.x+
+- **Counter-Strike 2** latest version
+
+The design ensures the code adapts to game updates through dynamic pattern scanning and runtime API resolution.

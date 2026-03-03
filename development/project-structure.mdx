@@ -1,0 +1,187 @@
+---
+title: Project Structure
+description: Source code organization and architecture of Osiris
+---
+
+## Overview
+
+The Osiris source code is organized into a modular structure with clear separation of concerns. All source files are located in the `Source/` directory.
+
+## Directory Structure
+
+### Core Components
+
+<CardGroup cols={2}>
+  <Card title="BuildConfig.h" icon="gear">
+    Build configuration and compile-time settings
+  </Card>
+  <Card title="dllmain.cpp" icon="door-open">
+    Main DLL entry point and initialization logic
+  </Card>
+  <Card title="CMakeLists.txt" icon="hammer">
+    CMake build configuration for the project
+  </Card>
+  <Card title="Osiris.vcxproj" icon="windows">
+    Visual Studio project file for Windows builds
+  </Card>
+</CardGroup>
+
+### Source Directories
+
+<AccordionGroup>
+  <Accordion title="CS2/" icon="gamepad">
+    Counter-Strike 2 specific implementations and interfaces. Contains game-specific logic, structures, and integrations.
+  </Accordion>
+  
+  <Accordion title="Common/" icon="layer-group">
+    Common utilities and shared code used throughout the project.
+  </Accordion>
+  
+  <Accordion title="Config/" icon="sliders">
+    Configuration management system. Handles loading, saving, and managing user settings.
+  </Accordion>
+  
+  <Accordion title="EntryPoints/" icon="right-to-bracket">
+    Platform-specific entry points for DLL/shared library initialization.
+  </Accordion>
+  
+  <Accordion title="Features/" icon="star">
+    Implementation of all game enhancement features such as:
+    - Visual enhancements
+    - Player information displays
+    - Aim assistance
+    - Bomb alerts
+    - And other gameplay features
+  </Accordion>
+  
+  <Accordion title="GameClient/" icon="desktop">
+    Game client interfaces and interactions. Provides abstractions for communicating with the CS2 client.
+  </Accordion>
+  
+  <Accordion title="GlobalContext/" icon="globe">
+    Global state management and context sharing across different modules.
+  </Accordion>
+  
+  <Accordion title="HookContext/" icon="link">
+    Context management for function hooks and interception points.
+  </Accordion>
+  
+  <Accordion title="Hooks/" icon="fish-hook">
+    Function hooking implementations for intercepting and modifying game behavior.
+  </Accordion>
+  
+  <Accordion title="MemoryAllocation/" icon="memory">
+    Custom memory allocation system. Implements static memory allocation without heap usage.
+  </Accordion>
+  
+  <Accordion title="MemoryPatterns/" icon="magnifying-glass">
+    Memory pattern scanning and signature detection for locating game functions and data.
+  </Accordion>
+  
+  <Accordion title="MemorySearch/" icon="search">
+    Memory searching utilities and helpers for pattern matching.
+  </Accordion>
+  
+  <Accordion title="OutlineGlow/" icon="lightbulb">
+    Implementation of outline glow effects for entities (players, bombs, hostages, etc.).
+  </Accordion>
+  
+  <Accordion title="Platform/" icon="layer-group">
+    Platform-specific implementations for Windows and Linux:
+    - Windows system calls (WindowsSyscall.asm)
+    - Custom CRT for Windows (CRTWindows.cpp)
+    - Linux-specific system interfaces
+    - Dynamic library loading abstractions
+  </Accordion>
+  
+  <Accordion title="SDL/" icon="window-restore">
+    SDL (Simple DirectMedia Layer) integration for window management and input handling.
+  </Accordion>
+  
+  <Accordion title="UI/" icon="desktop">
+    User interface implementation using the game's Panorama UI system.
+  </Accordion>
+  
+  <Accordion title="Utils/" icon="wrench">
+    Utility functions and helper classes used across the codebase.
+  </Accordion>
+  
+  <Accordion title="Verification/" icon="shield-check">
+    Code verification and integrity checking.
+  </Accordion>
+  
+  <Accordion title="Vmt/" icon="table">
+    Virtual Method Table (VMT) hooking utilities for C++ class method interception.
+  </Accordion>
+</AccordionGroup>
+
+## Build System
+
+### CMake Configuration
+
+The project uses a two-level CMake structure:
+
+1. **Root CMakeLists.txt**: Defines project-wide settings
+   - C++20 standard requirement
+   - Platform-specific assembly language setup
+   - Test configuration
+   - Subdirectory inclusion
+
+2. **Source/CMakeLists.txt**: Defines the Osiris library target
+   - Compiler-specific flags
+   - Release/Debug configurations
+   - Platform-specific source files
+   - Linking options
+
+### Platform-Specific Files
+
+<Tabs>
+  <Tab title="Windows">
+    - `Platform/Windows/Syscalls/WindowsSyscall.asm` - Direct system call implementations
+    - `Platform/Windows/CRTWindows.cpp` - Custom C Runtime (Release builds only)
+  </Tab>
+  <Tab title="Linux">
+    - Platform-specific implementations in `Platform/` directory
+    - Uses standard AT&T assembly syntax
+  </Tab>
+</Tabs>
+
+## Architecture Principles
+
+<CardGroup cols={2}>
+  <Card title="Modular Design" icon="cubes">
+    Each directory contains a focused set of related functionality, making the codebase easy to navigate and maintain.
+  </Card>
+  
+  <Card title="Platform Abstraction" icon="layer-group">
+    Platform-specific code is isolated in the `Platform/` directory, with common interfaces used throughout.
+  </Card>
+  
+  <Card title="No External Dependencies" icon="ban">
+    All functionality is self-contained with no third-party libraries required.
+  </Card>
+  
+  <Card title="Static Allocation" icon="lock">
+    Memory is allocated statically through the custom `MemoryAllocation/` system.
+  </Card>
+</CardGroup>
+
+## Key Subsystems
+
+### Memory Management
+
+Custom memory allocation system in `MemoryAllocation/` that avoids heap allocations entirely. All memory is allocated statically at compile time or from a pre-allocated pool.
+
+### Pattern Scanning
+
+The `MemoryPatterns/` and `MemorySearch/` directories implement signature scanning to locate game functions and data structures dynamically, ensuring compatibility across game updates.
+
+### Hooking System
+
+Two hooking approaches:
+- **VMT Hooking** (`Vmt/`): For C++ virtual method tables
+- **Function Hooking** (`Hooks/`): For intercepting specific game functions
+
+### UI System
+
+The `UI/` directory integrates with Counter-Strike 2's built-in Panorama UI framework, providing a native-looking interface without external rendering dependencies.

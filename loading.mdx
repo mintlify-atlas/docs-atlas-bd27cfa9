@@ -1,0 +1,203 @@
+---
+title: Loading into CS2
+description: How to inject Osiris into the Counter-Strike 2 process
+---
+
+# Loading into CS2
+
+After building Osiris, you need to inject (load) the library into the running Counter-Strike 2 process. The injection method differs between Windows and Linux.
+
+<Warning>
+  **VAC Detection Risk**: Using any injection method carries the risk of VAC (Valve Anti-Cheat) detection. Use at your own risk. A VAC ban is permanent and cannot be removed.
+</Warning>
+
+## Before you begin
+
+Ensure you have:
+
+1. Successfully [built Osiris](/building) for your platform
+2. Counter-Strike 2 installed and running
+3. The appropriate injection tool for your platform
+
+<Tabs>
+  <Tab title="Windows">
+    ## Windows injection
+
+    On Windows, you need a **DLL injector** to inject **Osiris.dll** into the CS2 process.
+
+    ### Important limitations
+
+    Counter-Strike 2 blocks the standard `LoadLibrary` injection method. You **must** use a manual mapping (reflective DLL injection) injector.
+
+    <Warning>
+      **Known detected injectors**:
+      - **Xenos** is detected by VAC
+      - **Extreme Injector** is detected by VAC
+      
+      Do not use these tools or you will receive a VAC ban.
+    </Warning>
+
+    ### Injection steps
+
+    <Steps>
+      <Step title="Launch Counter-Strike 2">
+        Start the game and wait until you are in the main menu or in a match.
+      </Step>
+      
+      <Step title="Open your injector">
+        Launch your manual mapping DLL injector with administrator privileges.
+        
+        <Note>
+          Administrator privileges are required to inject into game processes.
+        </Note>
+      </Step>
+      
+      <Step title="Select the process">
+        In the injector, select the **cs2.exe** process from the process list.
+      </Step>
+      
+      <Step title="Select the DLL">
+        Browse and select the **Osiris.dll** file you built in the previous step.
+        
+        Typical location:
+        ```
+        x64/Release/Osiris.dll
+        ```
+      </Step>
+      
+      <Step title="Inject with manual mapping">
+        Ensure your injector is set to use **manual mapping** or **reflective injection** mode.
+        
+        Click the inject button.
+      </Step>
+      
+      <Step title="Verify injection">
+        If successful, the Osiris GUI should appear in the game. Press **Insert** to open the menu.
+      </Step>
+    </Steps>
+
+    ### Choosing a safe injector
+
+    When selecting a DLL injector:
+
+    - Use injectors that support manual mapping/reflective injection
+    - Prefer open-source injectors where you can review the code
+    - Avoid injectors known to be detected by VAC
+    - Research the injector's detection history in cheat communities
+
+    <Note>
+      The developers do not recommend or endorse any specific injector. All injection carries risk.
+    </Note>
+  </Tab>
+
+  <Tab title="Linux">
+    ## Linux injection
+
+    On Linux, you can inject **libOsiris.so** using GDB (GNU Debugger) and the `dlopen` function.
+
+    ### Injection command
+
+    Navigate to the directory containing **libOsiris.so** and run:
+
+    ```bash
+    sudo gdb -batch-silent -p $(pidof cs2) -ex "call (void*)dlopen(\"$PWD/libOsiris.so\", 2)"
+    ```
+
+    This command:
+    - Uses `sudo` for required permissions
+    - Attaches GDB to the CS2 process using `pidof cs2`
+    - Calls `dlopen` to load the library
+    - Uses `$PWD` to get the absolute path to the current directory
+
+    ### Injection steps
+
+    <Steps>
+      <Step title="Launch Counter-Strike 2">
+        Start the game and wait until you are in the main menu or in a match.
+      </Step>
+      
+      <Step title="Navigate to the build directory">
+        Open a terminal and change to the directory containing **libOsiris.so**:
+        
+        ```bash
+        cd build/Source/
+        ```
+      </Step>
+      
+      <Step title="Run the injection command">
+        Execute the GDB injection command:
+        
+        ```bash
+        sudo gdb -batch-silent -p $(pidof cs2) -ex "call (void*)dlopen(\"$PWD/libOsiris.so\", 2)"
+        ```
+        
+        You will be prompted for your sudo password.
+      </Step>
+      
+      <Step title="Verify injection">
+        If successful, the Osiris GUI should appear in the game. Press **Insert** to open the menu.
+      </Step>
+    </Steps>
+
+    <Warning>
+      **VAC Detection Risk**: This injection method may be detected by VAC because GDB is visible under **TracerPid** in `/proc/$(pidof cs2)/status` for the duration of the injection.
+    </Warning>
+
+    ### Alternative injection methods
+
+    While GDB injection is the simplest method, more advanced users may want to explore:
+
+    - **LD_PRELOAD**: May not work with CS2 due to anti-cheat measures
+    - **Custom injectors**: Manual mapping implementations for Linux
+    - **ptrace-based injectors**: Similar to GDB but with more control
+
+    <Note>
+      Alternative injection methods require advanced Linux knowledge and may still be detected by VAC.
+    </Note>
+  </Tab>
+</Tabs>
+
+## After injection
+
+Once Osiris is successfully loaded:
+
+1. Press **Insert** to open the Osiris GUI
+2. Navigate through the tabs: Combat, HUD, Visuals, Sound
+3. Configure features according to your preferences
+4. Settings are automatically saved to disk
+
+### Configuration location
+
+Settings are stored in:
+
+- **Windows**: `%appdata%\OsirisCS2\configs\default.cfg`
+- **Linux**: `$HOME/OsirisCS2/configs/default.cfg`
+
+## Troubleshooting
+
+### Injection fails
+
+- **Process not found**: Ensure CS2 is running before attempting injection
+- **Permission denied**: Run the injector with administrator/sudo privileges
+- **Wrong architecture**: Verify you built the x64 version, not x86
+
+### Game crashes
+
+- **Incompatible build**: Ensure you used the Release build configuration
+- **Game update**: CS2 updates may break Osiris; wait for an updated version
+- **Conflicting software**: Disable other overlays or game modifications
+
+### GUI doesn't appear
+
+- **Wrong key**: Try pressing **Insert** or **Home** to open the menu
+- **Injection failed**: Check injector logs for error messages
+- **Panorama issue**: Restart the game and try again
+
+## Next steps
+
+Explore Osiris features:
+
+- [Feature overview](/features/overview)
+- [Combat features](/features/combat)
+- [Visual features](/features/visuals)
+- [Configuration guide](/configuration/overview)

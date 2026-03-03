@@ -1,0 +1,458 @@
+---
+title: Panorama GUI Integration
+description: Using the game's Panorama UI system for the configuration interface
+---
+
+Osiris embeds its entire user interface directly into Counter-Strike 2's main menu using the game's built-in Panorama UI system. This approach provides a native-looking interface and avoids the need for external overlays.
+
+## Overview
+
+Panorama is Valve's UI framework used throughout CS2. Osiris hijacks this system to inject custom panels, creating a seamless configuration menu that looks and feels like part of the game.
+
+## Architecture
+
+### PanoramaGUI Class
+
+The main GUI controller is a template class that manages the entire interface:
+
+```cpp
+// Source/UI/Panorama/PanoramaGUI.h:99
+template <typename HookContext>
+class PanoramaGUI {
+public:
+    explicit PanoramaGUI(HookContext& hookContext) noexcept
+        : hookContext{hookContext}
+    {
+    }
+
+    void init(auto&& mainMenu) noexcept;
+    void run(UnloadFlag& unloadFlag) const noexcept;
+    void updateFromConfig() noexcept;
+    void onUnload() const noexcept;
+
+private:
+    HookContext& hookContext;
+};
+```
+
+Key responsibilities:
+- Initialize UI panels in the main menu
+- Handle user interactions
+- Synchronize with configuration state
+- Clean up on unload
+
+## Initialization
+
+The GUI is injected into the game's main menu during initialization:
+
+```cpp
+// Source/UI/Panorama/PanoramaGUI.h:106
+void init(auto&& mainMenu) noexcept
+{
+    if (!mainMenu)
+        return;
+
+    // Ensure settings tab is loaded because we use CSS classes from settings
+    uiEngine().runScript(mainMenu, 
+        "if (!$('#JsSettings')) MainMenu.NavigateToTab('JsSettings', 'settings/settings');");
+
+    const auto settings = mainMenu.findChildInLayoutFile("JsSettings");
+    if (settings)
+        state().settingsPanelHandle = settings.getHandle();
+
+    // Inject the main GUI creation script
+    uiEngine().runScript(settings, reinterpret_cast<const char*>(
+#include "CreateGUI.js"
+    ));
+
+    // Add navigation button to main menu
+    uiEngine().runScript(mainMenu, R"(
+(function () {
+  $('#JsSettings').FindChildInLayoutFile('OsirisMenuTab').SetParent($('#JsMainMenuContent'));
+
+  var openMenuButton = $.CreatePanel('RadioButton', $.GetContextPanel().FindChildTraverse('MainMenuNavBarSettings').GetParent(), 'OsirisOpenMenuButton', {
+    class: "mainmenu-top-navbar__radio-iconbtn",
+    group: "NavBar",
+    onactivate: "MainMenu.NavigateToTab('OsirisMenuTab', '');"
+  });
+
+  $.CreatePanel('Image', openMenuButton, '', {
+    class: "mainmenu-top-navbar__radio-btn__icon",
+    src: "s2r://panorama/images/icons/ui/bug.vsvg"
+  });
+
+  $.DispatchEvent('Activated', $.GetContextPanel().FindChildTraverse("MainMenuNavBarHome"), 'mouse');
+})();
+)")
+```
+
+This:
+1. Ensures the settings tab is loaded (for CSS classes)
+2. Injects the GUI creation script
+3. Creates a navigation button with a bug icon
+4. Integrates into the main menu navbar
+
+## JavaScript Integration
+
+The bulk of the UI is defined in embedded JavaScript:
+
+```javascript
+// Source/UI/Panorama/CreateGUI.js (partial)
+$.Osiris = (function () {
+  var activeTab;
+  var activeSubTab = {};
+
+  return {
+    rootPanel: (function () {
+      const rootPanel = $.CreatePanel('Panel', $.GetContextPanel(), 'OsirisMenuTab', {
+        class: "mainmenu-content__container",
+        useglobalcontext: "true"
+      });
+
+      rootPanel.visible = false;
+      rootPanel.SetReadyForDisplay(false);
+      rootPanel.RegisterForReadyEvents(true);
+      
+      return rootPanel;
+    })(),
+    
+    addCommand: function (command, value = '') {
+      var existingCommands = this.rootPanel.GetAttributeString('cmd', '');
+      this.rootPanel.SetAttributeString('cmd', existingCommands + command + ' ' + value);
+    },
+    
+    navigateToTab: function (tabID) {
+      if (activeTab === tabID)
+        return;
+
+      if (activeTab) {
+        var panelToHide = this.rootPanel.FindChildInLayoutFile(activeTab);
+        panelToHide.RemoveClass('Active');
+      }
+
+      this.rootPanel.FindChildInLayoutFile(tabID + '_button').checked = true;
+
+      activeTab = tabID;
+      var activePanel = this.rootPanel.FindChildInLayoutFile(tabID);
+      activePanel.AddClass('Active');
+      activePanel.visible = true;
+      activePanel.SetReadyForDisplay(true);
+    }
+  };
+})();
+```
+
+Key features:
+- Tab navigation system
+- Command queue for C++ communication
+- Panel visibility management
+- Proper event handling
+
+## UI Structure
+
+The interface is organized into tabs:
+
+```javascript
+// Combat Tab
+var createCombatNavbar = function () {
+  var navbar = $.CreatePanel('Panel', $.Osiris.rootPanel.FindChildInLayoutFile('combat'), '', {
+    class: "content-navbar__tabs content-navbar__tabs--dark content-navbar__tabs--noflow"
+  });
+  
+  var sniperRiflesTabButton = $.CreatePanel('RadioButton', centerContainer, 'sniper_rifles_button', {
+    group: "CombatNavBar",
+    class: "content-navbar__tabs__btn",
+    onactivate: "$.Osiris.navigateToSubTab('combat', 'sniper_rifles');"
+  });
+};
+
+// HUD Tab
+var hud = createTab('hud');
+var bomb = createSection(hud, 'Bomb');
+createYesNoDropDown(bomb, "Show Bomb Explosion Countdown And Site", 'hud', 'bomb_timer');
+createYesNoDropDown(bomb, "Show Bomb Defuse Countdown", 'hud', 'defusing_alert');
+
+// Visuals Tab with subtabs
+var visuals = createVisualsTab();
+var playerInfoTab = createSubTab(visuals, 'player_info');
+var outlineGlowTab = createSubTab(visuals, 'outline_glow');
+var modelGlowTab = createSubTab(visuals, 'model_glow');
+
+// Sound Tab
+var sound = createTab('sound');
+var playerSoundVisualization = createSection(sound, 'Player Sound Visualization');
+```
+
+Hierarchy:
+- Root panel (`OsirisMenuTab`)
+  - Combat tab
+    - Sniper rifles subtab
+  - HUD tab
+    - Bomb section
+    - Killfeed section
+    - Time section
+  - Visuals tab
+    - Player Info subtab
+    - Outline Glow subtab
+    - Model Glow subtab
+    - Viewmodel subtab
+  - Sound tab
+
+## UI Components
+
+### Dropdowns
+
+```javascript
+var createDropDown = function (parent, labelText, section, feature, options) {
+  var container = $.CreatePanel('Panel', parent, '', {
+    class: "SettingsMenuDropdownContainer"
+  });
+
+  $.CreatePanel('Label', container, '', {
+    class: "half-width",
+    text: labelText
+  });
+
+  var dropdown = $.CreatePanel('CSGOSettingsEnumDropDown', container, feature, { 
+    class: "PopupButton White" 
+  });
+
+  for (let i = 0; i < options.length; ++i) {
+    dropdown.AddOption($.CreatePanel('Label', dropdown, i, {
+      value: i,
+      text: options[i]
+    }));
+  }
+};
+```
+
+### Sliders
+
+```javascript
+var createHueSlider = function (parent, name, id, min, max) {
+  var slider = $.CreatePanel('Slider', sliderContainer, '', {
+    class: "HorizontalSlider",
+    style: "width: 200px; vertical-align: center;",
+    direction: "horizontal"
+  });
+
+  slider.min = min;
+  slider.max = max;
+  slider.increment = 1.0;
+
+  var textEntry = $.CreatePanel('TextEntry', sliderContainer, id + '_text', {
+    maxchars: "3",
+    textmode: "numeric",
+    style: "width: 75px; margin-left: 10px; text-align: center;"
+  });
+
+  // Color preview panel
+  $.CreatePanel('Panel', sliderContainer, id + '_color', {
+    style: "border: 2px solid #000000a0; border-radius: 5px; width: 25px; height: 25px;"
+  });
+}
+```
+
+### Preview Panels
+
+```javascript
+var createPlayerModelGlowPreview = function (parent, id, labelId, playerModel, itemId) {
+  var previewPanel = $.CreatePanel('MapPlayerPreviewPanel', container, id, {
+    map: "ui/buy_menu",
+    camera: "cam_loadoutmenu_ct",
+    "require-composition-layer": true,
+    playermodel: playerModel,
+    animgraphcharactermode: "buy-menu",
+    player: true,
+    mouse_rotate: false,
+    "transparent-background": true,
+    style: "width: 300px; height: 300px;"
+  });
+  previewPanel.EquipPlayerWithItem(itemId);
+}
+```
+
+## C++ to JavaScript Communication
+
+Commands are passed from JavaScript to C++ via panel attributes:
+
+```javascript
+// JavaScript: Queue a command
+$.Osiris.addCommand('set', 'visuals/player_outline_glow_blue_hue/220');
+```
+
+```cpp
+// C++: Process commands
+// Source/UI/Panorama/PanoramaGUI.h:180
+void run(UnloadFlag& unloadFlag) const noexcept
+{
+    auto&& guiPanel = uiEngine().getPanelFromHandle(state().guiPanelHandle);
+    if (!guiPanel)
+        return;
+
+    const auto cmdSymbol = uiEngine().makeSymbol(0, "cmd");
+    const auto cmd = guiPanel.getAttributeString(cmdSymbol, "");
+    PanoramaCommandDispatcher{cmd, unloadFlag, hookContext}();
+    guiPanel.setAttributeString(cmdSymbol, "");
+}
+```
+
+The `PanoramaCommandDispatcher` parses and executes commands:
+- `set` - Update configuration value
+- `unload` - Unload Osiris
+- `restore_defaults` - Reset configuration
+
+## State Synchronization
+
+The GUI maintains its own state separate from the configuration:
+
+```cpp
+// Source/UI/Panorama/PanoramaGuiState.h
+struct PanoramaGuiState {
+    cs2::PanelHandle guiPanelHandle;
+    cs2::PanelHandle guiButtonHandle;
+    cs2::PanelHandle settingsPanelHandle;
+    cs2::PanelHandle modelGlowPreviewPlayerLabelHandleTT;
+    cs2::PanelHandle modelGlowPreviewPlayerLabelHandleCT;
+    cs2::PanelHandle viewmodelPreviewPanelHandle;
+};
+```
+
+Panel handles are cached to avoid repeated lookups.
+
+## Preview System
+
+The Model Glow preview shows live updates:
+
+```cpp
+// Source/UI/Panorama/PanoramaGUI.h:186
+auto&& playerModelGlowPreview = hookContext.template make<PlayerModelGlowPreview>();
+if (!playerModelGlowPreview.isPreviewPlayerSetTT())
+    playerModelGlowPreview.setPreviewPlayerTT(
+        guiPanel.findChildInLayoutFile("ModelGlowPreviewPlayerTT")
+            .clientPanel().template as<Ui3dPanel>()
+            .portraitWorld().findPreviewPlayer());
+
+if (!playerModelGlowPreview.isPreviewPlayerSetCT())
+    playerModelGlowPreview.setPreviewPlayerCT(
+        guiPanel.findChildInLayoutFile("ModelGlowPreviewPlayerCT")
+            .clientPanel().template as<Ui3dPanel>()
+            .portraitWorld().findPreviewPlayer());
+
+playerModelGlowPreview.update();
+playerModelGlowPreview.hookPreviewPlayersSceneObjectUpdaters();
+```
+
+This:
+1. Finds the 3D preview panel
+2. Gets the preview player entities
+3. Hooks their scene object updaters
+4. Applies glow effects in real-time
+
+## Slider Handling
+
+Hue sliders with live color preview:
+
+```cpp
+// Source/UI/Panorama/PanoramaGUI.h:160
+template <typename ConfigVariable>
+void onHueSliderValueChanged(const char* panelId, float value) const
+{
+    const auto newVariableValue = handleHueSlider(
+        panelId, value, 
+        ConfigVariable::ValueType::kMin, 
+        ConfigVariable::ValueType::kMax, 
+        GET_CONFIG_VAR(ConfigVariable));
+    hookContext.config().template setVariable<ConfigVariable>(
+        typename ConfigVariable::ValueType{newVariableValue});
+}
+
+[[nodiscard]] color::HueInteger handleHueSlider(
+    const char* sliderId, float value, 
+    color::HueInteger min, color::HueInteger max, 
+    color::HueInteger current) const noexcept
+{
+    const auto hueIntegral = static_cast<color::HueInteger::UnderlyingType>(value);
+    if (hueIntegral < min || hueIntegral > max || hueIntegral == current)
+        return current;
+
+    const auto hue = color::HueInteger{hueIntegral};
+    auto&& hueSlider = getHueSlider(sliderId);
+    hueSlider.updateTextEntry(hue);
+    hueSlider.updateColorPreview(hue);
+    return hue;
+}
+```
+
+Features:
+- Range validation
+- Synchronization between slider and text entry
+- Live color preview update
+- Direct config modification
+
+## Cleanup
+
+Proper cleanup on unload:
+
+```cpp
+// Source/UI/Panorama/PanoramaGUI.h:220
+void onUnload() const noexcept
+{
+    uiEngine().deletePanelByHandle(state().guiButtonHandle);
+    uiEngine().deletePanelByHandle(state().guiPanelHandle);
+
+    if (auto&& settingsPanel = uiEngine().getPanelFromHandle(state().settingsPanelHandle))
+        uiEngine().runScript(settingsPanel, "delete $.Osiris");
+}
+```
+
+This removes:
+- The navigation button
+- The main panel
+- The JavaScript `$.Osiris` object
+
+## Tabs Implementation
+
+Each major tab has its own C++ class:
+
+```cpp
+// Source/UI/Panorama/CombatTab.h
+template <typename HookContext>
+class CombatTab {
+    void init(auto&& guiPanel) noexcept;
+    void updateFromConfig(auto&& mainMenu) noexcept;
+};
+
+// Source/UI/Panorama/HudTab.h
+template <typename HookContext>
+class HudTab {
+    void init(auto&& guiPanel) noexcept;
+    void updateFromConfig(auto&& mainMenu) noexcept;
+};
+
+// Source/UI/Panorama/VisualsTab.h
+template <typename HookContext>
+class VisualsTab {
+    void init(auto&& guiPanel) noexcept;
+    void updateFromConfig(auto&& mainMenu) noexcept;
+};
+```
+
+Each handles:
+- Dropdown selection change callbacks
+- Config synchronization
+- Feature-specific UI logic
+
+## Benefits of Panorama Integration
+
+1. **Native Look**: UI matches game's style perfectly
+2. **No Overlay**: Runs inside the game's UI system
+3. **Performance**: Uses game's rendering pipeline
+4. **Accessibility**: Full keyboard/controller support
+5. **Reliability**: No external window management
+6. **Undetectable**: Appears as game UI to anti-cheat
+
+## Related Topics
+
+- [Architecture](/technical/architecture) - Overall system design
+- [Hooking](/technical/hooking) - How UI hooks into the game

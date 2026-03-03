@@ -1,0 +1,451 @@
+---
+title: Hook System
+description: Implementation of function hooks and VMT swapping
+---
+
+Osiris uses function hooking to intercept game execution and inject custom logic. The hook system is designed to be minimal, safe, and undetectable.
+
+## Hook Types
+
+Osiris uses two primary hooking techniques:
+
+1. **Direct Function Pointer Hooking** - Replacing function pointers
+2. **VMT Swapping** - Replacing virtual method table pointers
+
+No inline hooks, import address table (IAT) hooks, or hardware breakpoints are used.
+
+## Hooks Structure
+
+All hooks are managed in a central structure:
+
+```cpp
+// Source/Hooks/Hooks.h
+struct Hooks {
+    Hooks(PeepEventsHook peepEventsHook, cs2::CViewRender** viewRender, const VmtLengthCalculator& clientVmtLengthCalculator) noexcept
+        : clientVmtLengthCalculator{clientVmtLengthCalculator}
+        , peepEventsHook{peepEventsHook}
+        , viewRenderHook{viewRender, clientVmtLengthCalculator}
+    {
+    }
+
+    VmtLengthCalculator clientVmtLengthCalculator;
+    VmtSwapper clientModeVmtSwapper;
+    cs2::ClientModeCSNormal::GetViewmodelFov* originalGetViewmodelFov{nullptr};
+    PeepEventsHook peepEventsHook;
+    ViewRenderHook viewRenderHook;
+};
+```
+
+Key hooks:
+- `peepEventsHook` - Entry point for game thread execution
+- `viewRenderHook` - Rendering callbacks
+- `clientModeVmtSwapper` - ClientMode virtual methods
+
+## PeepEvents Hook
+
+The PeepEvents hook is the primary entry point into the game's main thread.
+
+### Implementation
+
+```cpp
+// Source/Hooks/PeepEventsHook.h
+class PeepEventsHook {
+public:
+    explicit PeepEventsHook(sdl3::SDL_PeepEvents** peepEvents) noexcept
+        : peepEventsPointer{peepEvents}
+    {
+    }
+
+    [[nodiscard]] bool isValid() const noexcept
+    {
+        return peepEventsPointer != nullptr;
+    }
+
+    void enable() noexcept
+    {
+        assert(isValid());
+        original = *peepEventsPointer;
+        *peepEventsPointer = &SDLHook_PeepEvents;
+    }
+
+    void disable() const noexcept
+    {
+        assert(isValid());
+        *peepEventsPointer = original;
+    }
+
+    sdl3::SDL_PeepEvents** peepEventsPointer{nullptr};
+    sdl3::SDL_PeepEvents* original{nullptr};
+};
+```
+
+This is a simple function pointer hook:
+1. Locate the `SDL_PeepEvents` function pointer via pattern scanning
+2. Save the original pointer
+3. Replace it with `SDLHook_PeepEvents`
+4. Call original from the hook
+
+### Hook Handler
+
+```cpp
+int SDLHook_PeepEvents(void* events, int numevents, int action, unsigned minType, unsigned maxType) noexcept
+{
+    auto& hookContext = GlobalContext::instance().fullContext();
+    
+    // Initialize full context if needed
+    if (!GlobalContext::instance().isComplete())
+        GlobalContext::instance().initCompleteContextFromGameThread();
+    
+    // Run frame logic
+    if (GlobalContext::instance().isComplete()) {
+        // Process GUI commands
+        // Update features
+        // Handle rendering
+    }
+    
+    // Call original
+    return hookContext.hooks.peepEventsHook.original(events, numevents, action, minType, maxType);
+}
+```
+
+This provides:
+- Safe initialization on game thread
+- Per-frame execution
+- Access to game state
+
+## ViewRender Hook
+
+The ViewRender hook intercepts rendering to draw overlays and modify rendering behavior.
+
+### Implementation
+
+```cpp
+// Source/Hooks/ViewRenderHook.h
+class ViewRenderHook {
+public:
+    ViewRenderHook(cs2::CViewRender** viewRender, const VmtLengthCalculator& vmtLengthCalculator) noexcept
+        : viewRender{viewRender}
+        , vmtLengthCalculator{vmtLengthCalculator}
+    {
+    }
+
+    void install() noexcept
+    {
+        if (viewRender && *viewRender && hook.install(vmtLengthCalculator, *reinterpret_cast<std::uintptr_t**>(*viewRender))) {
+            originalOnRenderStart = hook.hook(4, &ViewRenderHook_onRenderStart);
+        }
+    }
+
+    void uninstall() const noexcept
+    {
+        if (viewRender && *viewRender)
+            hook.uninstall(*reinterpret_cast<std::uintptr_t**>(*viewRender));
+    }
+
+    [[nodiscard]] bool isInstalled() const noexcept
+    {
+        return hook.wasEverInstalled() && viewRender && *viewRender && 
+               hook.isInstalled(*reinterpret_cast<std::uintptr_t**>(*viewRender));
+    }
+
+    cs2::CViewRender** viewRender;
+    VmtLengthCalculator vmtLengthCalculator;
+    VmtSwapper hook;
+    cs2::CViewRender::OnRenderStart* originalOnRenderStart{ nullptr };
+};
+```
+
+### Hook Handler
+
+```cpp
+void ViewRenderHook_onRenderStart(cs2::CViewRender* thisptr) noexcept
+{
+    auto& hookContext = GlobalContext::instance().fullContext();
+    
+    // Render features (player info, glow effects, etc.)
+    // ...
+    
+    // Call original
+    if (auto original = hookContext.hooks.viewRenderHook.getOriginalOnRenderStart())
+        original(thisptr);
+}
+```
+
+## VMT Swapping
+
+Virtual Method Table (VMT) swapping is used to hook virtual functions.
+
+### VmtSwapper Class
+
+```cpp
+// Source/Vmt/VmtSwapper.h
+class VmtSwapper {
+public:
+    bool install(const VmtLengthCalculator& vmtLengthCalculator, std::uintptr_t*& vmt) noexcept
+    {
+        const auto justInitialized = initializeVmtCopy(vmtLengthCalculator, vmt);
+        if (const auto replacementVmt = vmtCopy->getReplacementVmt())
+            vmt = replacementVmt;
+        return justInitialized;
+    }
+
+    void uninstall(std::uintptr_t*& vmt) const noexcept
+    {
+        assert(wasEverInstalled());
+        vmt = vmtCopy->getOriginalVmt();
+    }
+
+    [[nodiscard]] GenericFunctionPointer hook(std::size_t index, GenericFunctionPointer replacementFunction) const noexcept
+    {
+        assert(wasEverInstalled());
+        if (const auto replacementVmt = vmtCopy->getReplacementVmt())
+            replacementVmt[index] = std::uintptr_t(static_cast<void(*)()>(replacementFunction));
+        return reinterpret_cast<void(*)()>(vmtCopy->getOriginalVmt()[index]);
+    }
+
+private:
+    [[nodiscard]] bool initializeVmtCopy(const VmtLengthCalculator& vmtLengthCalculator, std::uintptr_t* vmt) noexcept
+    {
+        if (!vmtCopy.has_value()) {
+            vmtCopy.emplace(vmt, vmtLengthCalculator(vmt));
+            return true;
+        }
+        return false;
+    }
+
+    std::optional<VmtCopy> vmtCopy;
+};
+```
+
+Process:
+1. Calculate VMT length
+2. Create a copy of the VMT
+3. Modify entries in the copy
+4. Swap the object's VMT pointer to the copy
+5. Save original for calling and restoration
+
+### VmtLengthCalculator
+
+```cpp
+// Source/Vmt/VmtLengthCalculator.h
+struct VmtLengthCalculator {
+    explicit VmtLengthCalculator(MemorySection codeSection, MemorySection vmtSection)
+        : codeSection{ codeSection }, vmtSection{ vmtSection }
+    {
+    }
+
+    [[nodiscard]] VmtLength operator()(const std::uintptr_t* vmt) const noexcept
+    {
+        std::size_t length = 0;
+        while (isVmtEntry(vmt + length))
+            ++length;
+        return VmtLength{ length };
+    }
+
+private:
+    [[nodiscard]] bool isVmtEntry(const std::uintptr_t* pointer) const noexcept
+    {
+        return vmtSection.contains(std::uintptr_t(pointer), sizeof(std::uintptr_t)) && 
+               codeSection.contains(*pointer);
+    }
+
+    MemorySection codeSection;
+    MemorySection vmtSection;
+};
+```
+
+The length calculator:
+- Validates each VMT entry points to executable code
+- Ensures the entry itself is in the VMT section
+- Stops at the first invalid entry
+- Prevents buffer overruns when copying
+
+## Memory Allocation for VMT Copies
+
+VMT copies are allocated from the custom memory allocator:
+
+```cpp
+class VmtCopy {
+public:
+    VmtCopy(std::uintptr_t* originalVmt, VmtLength length) noexcept
+        : originalVmt{originalVmt}
+        , length{length}
+    {
+        replacementVmt = allocateReplacementVmt();
+        if (replacementVmt)
+            copyOriginalVmt();
+    }
+
+private:
+    std::uintptr_t* allocateReplacementVmt() noexcept
+    {
+        const auto size = length.value * sizeof(std::uintptr_t);
+        auto& freeRegionList = GlobalContext::instance().freeRegionList();
+        return reinterpret_cast<std::uintptr_t*>(freeRegionList.allocate(size));
+    }
+
+    void copyOriginalVmt() noexcept
+    {
+        for (std::size_t i = 0; i < length.value; ++i)
+            replacementVmt[i] = originalVmt[i];
+    }
+
+    std::uintptr_t* originalVmt;
+    std::uintptr_t* replacementVmt{nullptr};
+    VmtLength length;
+};
+```
+
+## Hook Safety
+
+### Thread Safety
+
+Osiris doesn't create threads, so there are no threading concerns. All hooks execute on game threads.
+
+### Exception Safety
+
+All hook handlers are `noexcept`. Exceptions are disabled globally.
+
+### Calling Conventions
+
+Hooks must match the calling convention of hooked functions:
+- On Linux: System V AMD64 ABI (default for C++)
+- On Windows: Microsoft x64 calling convention (default for C++)
+
+No special declaration needed for virtual functions.
+
+### Restore on Unload
+
+All hooks are properly restored:
+
+```cpp
+void Hooks::uninstall() noexcept
+{
+    peepEventsHook.disable();
+    viewRenderHook.uninstall();
+    clientModeVmtSwapper.uninstall();
+}
+```
+
+## Hook Timing
+
+### Installation Order
+
+1. **PeepEvents** - Installed during partial context init
+2. **ViewRender** - Installed during full context init
+3. **ClientMode** - Installed on-demand when needed
+
+### Execution Order
+
+Each frame:
+1. Game calls `SDL_PeepEvents`
+2. Our `SDLHook_PeepEvents` executes
+3. We initialize full context (first frame only)
+4. We process GUI, features, etc.
+5. We call original `SDL_PeepEvents`
+6. Game rendering begins
+7. Game calls `CViewRender::OnRenderStart`
+8. Our `ViewRenderHook_onRenderStart` executes
+9. We render overlays and effects
+10. We call original `OnRenderStart`
+11. Game continues rendering
+
+## Advanced Techniques
+
+### Lazy Hook Installation
+
+Some hooks are only installed when needed:
+
+```cpp
+if (config.viewmodelFovEnabled && !hooks.clientModeVmtSwapper.wasEverInstalled()) {
+    hooks.clientModeVmtSwapper.install(vmtLengthCalculator, clientMode->vmt);
+    hooks.originalGetViewmodelFov = hooks.clientModeVmtSwapper.hook(35, &getViewmodelFov);
+}
+```
+
+Benefits:
+- Minimal footprint when features disabled
+- Reduces detection surface
+- Better performance
+
+### Conditional Hook Execution
+
+```cpp
+void ViewRenderHook_onRenderStart(cs2::CViewRender* thisptr) noexcept
+{
+    auto& hookContext = GlobalContext::instance().fullContext();
+    
+    if (hookContext.configState.playerInfoEnabled) {
+        renderPlayerInfo();
+    }
+    
+    if (hookContext.configState.glowEnabled) {
+        renderGlow();
+    }
+    
+    // Always call original
+    if (auto original = hookContext.hooks.viewRenderHook.getOriginalOnRenderStart())
+        original(thisptr);
+}
+```
+
+### Pattern-Based Hook Location
+
+All hooks locations are found via pattern scanning:
+
+```cpp
+// Find ViewRender instance
+auto viewRenderPtr = patternSearchResults.get<ViewRenderPointer>();
+
+// Install hook
+if (viewRenderPtr)
+    viewRenderHook.install(viewRenderPtr);
+```
+
+This eliminates hardcoded addresses and adapts to game updates.
+
+## Debugging Hooks
+
+In debug builds:
+
+```cpp
+#ifndef NDEBUG
+struct HookDebugInfo {
+    const char* hookName;
+    void* originalFunction;
+    void* replacementFunction;
+    bool isInstalled;
+};
+
+void logHookState(const HookDebugInfo& info) {
+    // Log hook status
+}
+#endif
+```
+
+## Hook Limitations
+
+### What We Don't Hook
+
+- **Inline functions** - Inlined code can't be hooked
+- **Static functions** - Can't find without pattern scanning each call site
+- **Optimized out functions** - Don't exist in release builds
+- **System calls** - Kernel-level hooks are too risky
+
+### Hook Stability
+
+Hooks may break when:
+- Game updates change code patterns
+- Compiler optimizations change virtual table layouts
+- Game refactors hooked classes
+
+Mitigation:
+- Multiple pattern candidates
+- Graceful degradation when hooks fail
+- Version-specific pattern sets
+
+## Related Topics
+
+- [Architecture](/technical/architecture) - Overall system design
+- [Memory Patterns](/technical/memory-patterns) - Finding hook locations
+- [Panorama GUI](/technical/panorama-gui) - GUI hooks and integration

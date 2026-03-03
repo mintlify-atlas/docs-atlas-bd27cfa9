@@ -1,0 +1,167 @@
+---
+title: HUD Features
+description: Heads-up display customizations including timers, alerts, and information panels
+---
+
+HUD features enhance the in-game interface with additional timers, alerts, and information displays to improve situational awareness.
+
+## Bomb-Related Features
+
+<Accordion title="Bomb Timer">
+  <Note>
+    **Location:** HUD > Bomb
+  </Note>
+
+  Displays a countdown timer showing when the planted bomb will explode, along with the bombsite letter indicator.
+
+  ### Configuration
+
+  **Show Bomb Explosion Countdown And Site**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Real-time countdown showing seconds until explosion
+  - Bombsite indicator (A or B) with icon
+  - Positioned near the HUD score/time area
+  - Automatically appears when bomb is planted
+  - Hidden when bomb is defused or explodes
+
+  ### Use Cases
+
+  - Quickly check remaining time without looking at default timer
+  - Verify which bombsite is active
+  - Make informed rotation decisions
+  - Time-based tactical planning
+
+  **Implementation:** `~/workspace/source/Source/Features/Hud/BombTimer/BombTimer.h:17`
+</Accordion>
+
+<Accordion title="Defusing Alert">
+  <Note>
+    **Location:** HUD > Bomb
+  </Note>
+
+  Shows a countdown timer indicating the progress of bomb defusal attempts.
+
+  ### Configuration
+
+  **Show Bomb Defuse Countdown**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Real-time countdown of defuse progress
+  - Updates dynamically during defusal
+  - Automatically appears when defusal starts
+  - Disappears when defusal completes or is interrupted
+
+  ### Use Cases
+
+  - Monitor defuse timing
+  - Coordinate team actions around defuse duration
+  - Make informed decisions on pushing or holding positions
+
+  **Implementation:** `~/workspace/source/Source/Features/Hud/DefusingAlert/DefusingAlert.h:16`
+</Accordion>
+
+<Accordion title="Bomb Plant Alert">
+  <Note>
+    **Location:** HUD > Bomb
+  </Note>
+
+  Displays information during bomb planting, including whether the plant can complete before round time expires.
+
+  ### Configuration
+
+  **Show Bomb Plant Alert**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Shows which bombsite is being planted (A or B)
+  - Countdown of remaining plant time
+  - Color-coded indicator:
+    - **Green/Positive:** Plant will complete before round end
+    - **Red/Negative:** Not enough time to complete plant
+  - Automatically appears during planting animation
+
+  ### Visual Design
+
+  The alert includes:
+  - Bombsite icon (A or B planting symbol)
+  - Timer showing seconds remaining to complete plant
+  - Background color changes based on success likelihood
+  - Timer text color matches background state
+
+  ### Use Cases
+
+  - Verify you have time to complete the plant
+  - Avoid starting plants that will fail due to time
+  - Better understanding of round time management
+
+  **Implementation:** `~/workspace/source/Source/Features/Hud/BombPlantAlert/BombPlantAlert.h:23`
+</Accordion>
+
+## Killfeed Features
+
+<Accordion title="Killfeed Preserver">
+  <Note>
+    **Location:** HUD > Killfeed
+  </Note>
+
+  Preserves your kill notifications in the killfeed throughout the round, preventing them from being pushed off screen by subsequent kills.
+
+  ### Configuration
+
+  **Preserve My Killfeed During The Round**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### How It Works
+
+  When enabled, this feature maintains your kill entries in the killfeed by preventing them from being removed when new death notices appear. Your kills stay visible for the duration of the round.
+
+  ### Use Cases
+
+  - Track your performance during the round
+  - Verify multi-kill achievements
+  - Maintain awareness of who you've eliminated
+  - Review your impact at round end
+
+  **Implementation:** `~/workspace/source/Source/Features/Hud/KillfeedPreserver/KillfeedPreserver.h:17`
+</Accordion>
+
+## Timer Features
+
+<Accordion title="Post-Round Timer">
+  <Note>
+    **Location:** HUD > Time
+  </Note>
+
+  Displays a timer during the post-round phase showing the countdown until the next round begins.
+
+  ### Configuration
+
+  **Show Post-round Timer**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Countdown timer visible between rounds
+  - Shows seconds until round start
+  - Automatically appears at round end
+  - Hidden once new round begins
+
+  ### Use Cases
+
+  - Know exactly when the next round starts
+  - Time equipment purchases and positioning
+  - Coordinate team strategies during freeze time
+
+  **Implementation:** `~/workspace/source/Source/Features/Hud/PostRoundTimer/PostRoundTimer.h:16`
+</Accordion>

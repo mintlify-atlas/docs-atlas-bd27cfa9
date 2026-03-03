@@ -1,0 +1,121 @@
+---
+title: Installation
+description: Prerequisites and requirements for building and running Osiris
+---
+
+# Installation prerequisites
+
+Before you can build and use Osiris, you need to ensure your system meets the necessary requirements. The prerequisites differ between Windows and Linux platforms.
+
+## Windows requirements
+
+To build Osiris on Windows, you need:
+
+### Microsoft Visual Studio 2022
+
+Visual Studio 2022 is required with the **Desktop development with C++** workload installed.
+
+<Steps>
+  <Step title="Download Visual Studio 2022">
+    Visit the [Visual Studio downloads page](https://visualstudio.microsoft.com/downloads/) and download the Community, Professional, or Enterprise edition.
+  </Step>
+  <Step title="Install Desktop development with C++ workload">
+    During installation, select the **Desktop development with C++** workload. This includes the MSVC compiler, Windows SDK, and other required tools.
+  </Step>
+  <Step title="Verify installation">
+    Ensure the installation completes successfully. You should be able to open Visual Studio 2022 and create C++ projects.
+  </Step>
+</Steps>
+
+<Note>
+  The project uses C++20 standard and requires MSVC compiler with Windows 10 SDK or later.
+</Note>
+
+## Linux requirements
+
+To build Osiris on Linux, you need the following tools:
+
+### CMake
+
+**CMake 3.24** or newer is required to configure the build system.
+
+```bash
+# Check your CMake version
+cmake --version
+
+# Install CMake on Ubuntu/Debian
+sudo apt install cmake
+
+# Install CMake on Fedora
+sudo dnf install cmake
+
+# Install CMake on Arch Linux
+sudo pacman -S cmake
+```
+
+### C++ compiler
+
+You need either:
+- **g++ 11 or newer**, or
+- **clang++ 18 or newer**
+
+```bash
+# Check your g++ version
+g++ --version
+
+# Install g++ on Ubuntu/Debian
+sudo apt install g++
+
+# Install g++ on Fedora
+sudo dnf install gcc-c++
+
+# Install g++ on Arch Linux
+sudo pacman -S gcc
+```
+
+```bash
+# Check your clang++ version
+clang++ --version
+
+# Install clang++ on Ubuntu/Debian
+sudo apt install clang
+
+# Install clang++ on Fedora
+sudo dnf install clang
+
+# Install clang++ on Arch Linux
+sudo pacman -S clang
+```
+
+<Note>
+  The project uses C++20 standard features, so older compiler versions may not work.
+</Note>
+
+### Additional dependencies
+
+For Linux injection, you'll also need:
+
+```bash
+# Install gdb for injection
+sudo apt install gdb  # Ubuntu/Debian
+sudo dnf install gdb  # Fedora
+sudo pacman -S gdb    # Arch Linux
+```
+
+## System requirements
+
+- **Operating system**: Windows 10/11 (64-bit) or Linux (64-bit)
+- **Architecture**: x64 only
+- **Game**: Counter-Strike 2 (latest version on Steam)
+- **Disk space**: At least 500 MB for source code and build artifacts
+
+## Next steps
+
+Once you have the prerequisites installed:
+
+1. [Build Osiris from source](/building)
+2. [Load Osiris into CS2](/loading)
+
+<Warning>
+  Always use Osiris at your own risk. VAC detection may result in a permanent ban.
+</Warning>

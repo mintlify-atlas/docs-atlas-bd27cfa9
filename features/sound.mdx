@@ -1,0 +1,268 @@
+---
+title: Sound Visualization
+description: Visual indicators for game sounds to enhance situational awareness
+---
+
+Sound visualization features display visual indicators when specific in-game sounds are played, helping you track audio cues visually.
+
+## Overview
+
+All sound visualization features work by detecting when specific sound events occur in the game and displaying a corresponding visual icon at the sound's origin point in the 3D world. These icons:
+
+- Scale based on distance (closer = larger)
+- Fade out over time after the sound plays
+- Are positioned at the exact 3D location of the sound source
+- Help identify sound locations when multiple events occur simultaneously
+
+## Player Sounds
+
+<Accordion title="Footstep Visualization">
+  <Note>
+    **Location:** Sound > Player Sound Visualization
+  </Note>
+
+  Displays a visual indicator when player footstep sounds are played.
+
+  ### Configuration
+
+  **Visualize Player Footstep Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears at the location of footstep sounds
+  - Uses a stomp/boot icon (`stomp_damage.svg`)
+  - Positioned above the sound origin point
+  - Scales with distance and fades over time
+
+  ### Use Cases
+
+  - Track enemy movement through sound
+  - Visualize footstep locations during replays
+  - Better awareness of teammate positions
+  - Accessibility aid for players with hearing difficulties
+
+  ### Technical Details
+
+  - Minimum scale: 0.4 (prevents icon from becoming too small)
+  - Positioned above origin for better visibility
+  - Fade away starts after a short duration
+
+  **Implementation:** `~/workspace/source/Source/Features/Sound/FootstepVisualizer.h:7`
+</Accordion>
+
+## Bomb Sounds
+
+<Accordion title="Bomb Plant Visualization">
+  <Note>
+    **Location:** Sound > Bomb Sound Visualization
+  </Note>
+
+  Displays a visual indicator when the bomb planting sound is detected.
+
+  ### Configuration
+
+  **Visualize Bomb Plant Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears at bombsite location during plant
+  - Shows exact position of planting action
+  - Helps identify which bombsite is being planted
+  - Visual confirmation of plant audio cue
+
+  ### Use Cases
+
+  - Verify bombsite location from plant sound
+  - Track plant timing visually
+  - Coordinate rotations based on visual confirmation
+</Accordion>
+
+<Accordion title="Bomb Beep Visualization">
+  <Note>
+    **Location:** Sound > Bomb Sound Visualization
+  </Note>
+
+  Visualizes the ticking/beeping sound of the planted bomb.
+
+  ### Configuration
+
+  **Visualize Bomb Beep Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears with each bomb beep
+  - Located at the planted bomb position
+  - Helps locate the bomb visually through audio cues
+  - Frequency matches bomb beeping rate
+
+  ### Use Cases
+
+  - Locate planted bomb position through sound
+  - Visual confirmation of bomb presence
+  - Accessibility feature for hearing-impaired players
+  - Training tool for sound awareness
+</Accordion>
+
+<Accordion title="Bomb Defuse Visualization">
+  <Note>
+    **Location:** Sound > Bomb Sound Visualization
+  </Note>
+
+  Shows a visual indicator when bomb defuse sounds are played.
+
+  ### Configuration
+
+  **Visualize Bomb Defuse Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears at defuse location
+  - Visual confirmation of defuse action
+  - Shows exact position of defusing player
+
+  ### Use Cases
+
+  - Confirm defuse attempt location
+  - Track defuse attempts visually
+  - Coordinate team actions around defuse
+</Accordion>
+
+## Weapon Sounds
+
+<Accordion title="Scope Sound Visualization">
+  <Note>
+    **Location:** Sound > Weapon Sound Visualization
+  </Note>
+
+  Displays a visual indicator when weapon scoping sounds occur.
+
+  ### Configuration
+
+  **Visualize Weapon Scope Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears when players scope with sniper rifles
+  - Shows location of scoping action
+  - Helps track enemy sniper positions
+
+  ### Use Cases
+
+  - Identify enemy AWP/sniper positions from scope sound
+  - Track when enemies are scoping
+  - Better awareness of sniper threats
+  - Tactical positioning based on sniper locations
+</Accordion>
+
+<Accordion title="Reload Sound Visualization">
+  <Note>
+    **Location:** Sound > Weapon Sound Visualization
+  </Note>
+
+  Visualizes weapon reload sounds in the game world.
+
+  ### Configuration
+
+  **Visualize Weapon Reload Sound**
+  - Options: `Yes`, `No`
+  - Default: `No`
+
+  ### Features
+
+  - Icon appears at reload sound location
+  - Shows when and where players are reloading
+  - Visual indicator of vulnerable moments
+
+  ### Use Cases
+
+  - Identify enemy reload timing
+  - Exploit reload windows for aggressive plays
+  - Track teammate reload states
+  - Better game sense and timing
+</Accordion>
+
+## Visualization System
+
+<Accordion title="How Sound Visualization Works">
+  ### Core Mechanics
+
+  All sound visualizations share a common system:
+
+  1. **Sound Detection**: The game's sound system is monitored for specific sound events
+  2. **Panel Creation**: When a sound plays, a UI panel is created at the 3D origin point
+  3. **Scaling**: Panel size adjusts based on distance from camera
+  4. **Fade Out**: Icons gradually fade and disappear after a set duration
+
+  ### Scale Calculation
+
+  Icon size is calculated using the formula:
+  ```
+  scale = clamp(500 / (z / fovScale + 400), minScale, 1.0)
+  ```
+  
+  Where:
+  - `z` is the distance from camera
+  - `fovScale` accounts for FOV changes
+  - `minScale` varies by sound type (typically 0.4)
+  - Result is clamped between minimum and maximum (1.0)
+
+  ### Opacity Fade
+
+  Icons fade out over time:
+  - Full opacity during initial duration
+  - Gradual fade begins at `kFadeAwayStart`
+  - Complete transparency at `kFadeAwayDuration`
+  - Smooth linear interpolation for fade effect
+
+  ### Position Types
+
+  Sounds can be positioned:
+  - **At Origin**: Icon placed exactly at sound source
+  - **Above Origin**: Icon offset upward for better visibility (used for footsteps)
+
+  **Implementation:** `~/workspace/source/Source/Features/Sound/Details/SoundVisualization.h:5`
+</Accordion>
+
+## Configuration Tips
+
+<Accordion title="Recommended Settings">
+  ### For Competitive Play
+
+  Consider enabling:
+  - **Footstep Visualization**: Track enemy movement
+  - **Reload Sound Visualization**: Exploit reload windows
+  - **Scope Sound Visualization**: Counter sniper positions
+
+  ### For Accessibility
+
+  Enable all sound visualizations to:
+  - Compensate for hearing difficulties
+  - Play in low-volume environments
+  - Improve sound awareness training
+
+  ### For Training
+
+  Use sound visualizations to:
+  - Learn sound cue locations
+  - Develop better game sense
+  - Understand sound propagation in maps
+  - Practice sound-based positioning
+
+  ### Performance Considerations
+
+  Sound visualizations have minimal performance impact:
+  - Icons are lightweight UI panels
+  - Automatic cleanup after fade out
+  - Efficient sound detection system
+  - No impact on game simulation
+</Accordion>

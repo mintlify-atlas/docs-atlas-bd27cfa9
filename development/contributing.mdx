@@ -1,0 +1,225 @@
+---
+title: Contributing
+description: Guidelines for contributing to the Osiris project
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to Osiris! This guide will help you get started with contributing to the project.
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork the repository">
+    Fork the Osiris repository on GitHub to your own account
+  </Step>
+  <Step title="Clone your fork">
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/Osiris.git
+    cd Osiris
+    ```
+  </Step>
+  <Step title="Set up development environment">
+    Follow the [Building from Source](/development/building-from-source) guide to set up your development environment
+  </Step>
+  <Step title="Create a feature branch">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+</Steps>
+
+## Code Guidelines
+
+### Technical Requirements
+
+All contributions must adhere to Osiris's technical constraints:
+
+<CardGroup cols={2}>
+  <Card title="No CRT in Release" icon="ban">
+    Release builds must not use the C++ runtime library. Use the custom CRT implementation in `Platform/Windows/CRTWindows.cpp` on Windows.
+  </Card>
+  
+  <Card title="No Heap Allocations" icon="memory">
+    All memory must be allocated statically or from pre-allocated pools. Use the custom memory allocation system in `MemoryAllocation/`.
+  </Card>
+  
+  <Card title="No Static Imports (Windows)" icon="link-slash">
+    Windows release builds must not have static imports. Use dynamic loading or system calls.
+  </Card>
+  
+  <Card title="No Threads" icon="ban">
+    Do not create new threads. All code must execute on existing game threads.
+  </Card>
+  
+  <Card title="No Exceptions" icon="exclamation-triangle">
+    Exception handling is disabled in release builds. Use error codes or other error handling mechanisms.
+  </Card>
+  
+  <Card title="No External Dependencies" icon="box">
+    Do not introduce third-party libraries or external dependencies.
+  </Card>
+</CardGroup>
+
+### Code Style
+
+- **C++ Standard**: Use C++20 features where appropriate
+- **Naming Conventions**: Follow the existing code style in the repository
+- **File Organization**: Place new files in the appropriate directory based on functionality
+- **Comments**: Add clear comments for complex logic, but avoid obvious comments
+
+### Compiler Compatibility
+
+Ensure your code compiles on:
+- **Windows**: Visual Studio 2022 (MSVC)
+- **Linux**: GCC 11+ or Clang 18+
+
+## Making Changes
+
+### Feature Development
+
+<Steps>
+  <Step title="Understand the architecture">
+    Review the [Project Structure](/development/project-structure) to understand where your changes should go
+  </Step>
+  <Step title="Implement your feature">
+    - Add new features in the `Features/` directory
+    - Create platform-specific code in `Platform/Windows/` or `Platform/Linux/` as needed
+    - Use existing utilities from `Utils/` and `Common/`
+  </Step>
+  <Step title="Test thoroughly">
+    - Test on both Debug and Release builds
+    - Test on all supported platforms if possible
+    - Verify no regressions in existing features
+  </Step>
+  <Step title="Update documentation">
+    Document any new features or significant changes
+  </Step>
+</Steps>
+
+### Bug Fixes
+
+<Steps>
+  <Step title="Identify the issue">
+    Clearly understand the bug and its root cause
+  </Step>
+  <Step title="Fix the bug">
+    Implement the minimal change necessary to fix the issue
+  </Step>
+  <Step title="Test the fix">
+    Verify the bug is fixed and no new issues are introduced
+  </Step>
+  <Step title="Add regression tests">
+    If applicable, add tests to prevent the bug from recurring
+  </Step>
+</Steps>
+
+## Submitting Changes
+
+<Steps>
+  <Step title="Commit your changes">
+    ```bash
+    git add .
+    git commit -m "Add feature: brief description"
+    ```
+    
+    Write clear, concise commit messages that explain what changed and why.
+  </Step>
+  <Step title="Push to your fork">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+  <Step title="Create a Pull Request">
+    - Go to the original Osiris repository on GitHub
+    - Click "New Pull Request"
+    - Select your fork and branch
+    - Fill in the PR template with:
+      - Clear description of changes
+      - Motivation for the changes
+      - Testing performed
+      - Screenshots/videos if applicable
+  </Step>
+  <Step title="Respond to feedback">
+    Address any review comments and update your PR as needed
+  </Step>
+</Steps>
+
+## Pull Request Guidelines
+
+<Check>Keep PRs focused on a single feature or bug fix</Check>
+<Check>Ensure all builds pass (Windows and Linux)</Check>
+<Check>Test both Debug and Release configurations</Check>
+<Check>Follow the existing code style</Check>
+<Check>Update documentation if needed</Check>
+<Check>Respond promptly to review feedback</Check>
+
+## Development Tips
+
+### Memory Allocation
+
+```cpp
+// ❌ Don't use heap allocation
+auto* data = new MyData();
+auto vector = std::vector<int>();
+
+// ✅ Use static allocation
+static MyData data;
+StaticVector<int, 100> vector;
+```
+
+### Platform-Specific Code
+
+```cpp
+#if defined(_WIN32)
+    // Windows-specific code
+    #include "Platform/Windows/WindowsHeader.h"
+#elif defined(__linux__)
+    // Linux-specific code
+    #include "Platform/Linux/LinuxHeader.h"
+#endif
+```
+
+### Error Handling
+
+```cpp
+// ❌ Don't use exceptions
+try {
+    riskyOperation();
+} catch (...) {
+    // Handle error
+}
+
+// ✅ Use return codes or optional types
+if (!riskyOperation())
+    return; // or handle error
+```
+
+## License
+
+By contributing to Osiris, you agree that your contributions will be licensed under the MIT License.
+
+<Note>
+Copyright (c) 2018-2025 Daniel Krupiński
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/mit-license.php).
+</Note>
+
+## Getting Help
+
+If you need help or have questions:
+
+1. Check existing issues and pull requests
+2. Review the [technical features documentation](/development/technical-features)
+3. Create a new issue on GitHub with:
+   - Clear description of your question
+   - What you've already tried
+   - Relevant code snippets
+
+## Community
+
+- Be respectful and constructive in all interactions
+- Help other contributors when possible
+- Follow GitHub's community guidelines
+
+We appreciate all contributions, whether they're bug fixes, new features, documentation improvements, or helping other users!

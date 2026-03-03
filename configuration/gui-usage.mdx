@@ -1,0 +1,186 @@
+---
+title: Using the GUI
+description: Navigate and customize settings through the in-game interface
+---
+
+Osiris features a comprehensive GUI built using Counter-Strike 2's Panorama UI system. All settings can be configured through an intuitive interface integrated into the game's main menu.
+
+## Accessing the GUI
+
+The Osiris menu appears as a new tab in the Counter-Strike 2 main menu after injection. It uses the same visual style as the native game interface.
+
+## GUI Structure
+
+The interface consists of a navigation bar and content area:
+
+### Top Navigation Bar
+
+- **Active Config Name** - Shows `default.cfg` (hover for tooltip)
+- **Restore Defaults** - Button to reset all settings to default values
+- **Main Tabs** - Combat, HUD, Visuals, Sound
+- **Unload Button** - Safely unload Osiris from the game
+
+### Main Tabs
+
+The GUI is organized into four primary tabs:
+
+#### Combat Tab
+
+Contains combat-related features with sub-navigation:
+
+- **Sniper Rifles** - No-scope inaccuracy visualization
+
+#### HUD Tab
+
+Displays HUD enhancement options:
+
+- **Bomb** - Explosion countdown, defuse countdown, plant alert
+- **Killfeed** - Preserve killfeed during rounds
+- **Time** - Post-round timer
+
+#### Visuals Tab
+
+The most extensive tab with four sub-tabs:
+
+- **Player Info In World** - Player position arrows, health, weapon icons, status icons
+- **Outline Glow** - Entity outline glow settings for players, weapons, bomb, hostages
+- **Model Glow** - Full model glow effects with color customization
+- **Viewmodel** - Viewmodel FOV modification
+
+#### Sound Tab
+
+Sound visualization features:
+
+- **Player Sound Visualization** - Footstep visualization
+- **Bomb Sound Visualization** - Plant, beep, and defuse sounds
+- **Weapon Sound Visualization** - Scope and reload sounds
+
+## Using Settings Controls
+
+<Steps>
+  <Step title="Navigate to a tab">
+    Click one of the main tab buttons (Combat, HUD, Visuals, Sound) in the center navigation bar.
+  </Step>
+  
+  <Step title="Select a sub-tab (if available)">
+    For Visuals and Combat tabs, click a sub-tab button to view specific feature categories.
+  </Step>
+  
+  <Step title="Configure dropdown settings">
+    Click dropdown menus to choose between options like "On/Off", "Yes/No", or multi-option selections (e.g., "Enemies", "All Players", "Off").
+  </Step>
+  
+  <Step title="Adjust sliders">
+    Drag sliders to set numeric values, or click the text entry field next to a slider to type an exact value and press Enter.
+  </Step>
+  
+  <Step title="Changes save automatically">
+    All changes are automatically saved to `default.cfg` when you modify a setting. No manual save action is required.
+  </Step>
+</Steps>
+
+## Control Types
+
+### Dropdowns
+
+Most features use dropdown menus:
+
+**On/Off Dropdowns**
+- Master switches for major feature categories
+- Example: Model Glow master switch
+
+**Yes/No Dropdowns**
+- Individual feature toggles
+- Example: "Show Player Health"
+
+**Multi-option Dropdowns**
+- Settings with multiple choices
+- Example: "Glow Players" with options "Enemies", "All Players", "Off"
+
+**Color Mode Dropdowns**
+- Choose coloring schemes
+- Example: "Player / Team Color", "Team Color", "Health-based", "Enemy / Ally"
+
+### Sliders
+
+Used for numeric values with specific ranges:
+
+**Hue Sliders**
+- Adjust color hue values (0-359 degrees)
+- Different ranges for different color categories
+- Includes a color preview square
+
+**FOV Slider**
+- Viewmodel field of view (40-90)
+- Affects first-person weapon view
+
+Each slider has:
+- A draggable handle
+- A text entry field for precise input
+- Visual feedback on hover and focus
+
+## Restore Defaults
+
+<Steps>
+  <Step title="Click the Restore Defaults button">
+    Located in the top-left area of the navigation bar (circular arrow icon).
+  </Step>
+  
+  <Step title="Confirm the action">
+    A popup appears asking "Are you sure you want to restore default settings in the active config file (default.cfg)?"
+  </Step>
+  
+  <Step title="Click RESTORE DEFAULTS">
+    All settings revert to their default values and the config file is automatically saved.
+  </Step>
+</Steps>
+
+Click "RETURN" to cancel without making changes.
+
+## Unloading Osiris
+
+<Steps>
+  <Step title="Click the Unload button">
+    Located in the top-right area of the navigation bar (X icon with red color).
+  </Step>
+  
+  <Step title="Confirm the action">
+    A popup appears asking "Are you sure you want to unload Osiris?"
+  </Step>
+  
+  <Step title="Click UNLOAD">
+    Osiris safely removes itself from the game process and returns you to the home menu.
+  </Step>
+</Steps>
+
+Click "RETURN" to cancel.
+
+## GUI Features
+
+### Tooltips
+
+Hover over buttons and labels to see helpful tooltips:
+- Active config name shows storage information
+- Restore Defaults button shows "Restore defaults"
+- Unload button shows "Unload"
+
+### Live Previews
+
+Some sections include visual previews:
+
+**Model Glow Preview**
+- Shows CT and T player models with glow effects
+- Displays weapon glow on the ground
+- Shows grenade projectile glows (flashbang, HE, smoke, incendiary)
+
+**Viewmodel Preview**
+- Real-time preview of viewmodel FOV changes
+- Displays weapon in first-person view
+
+### Visual Feedback
+
+The GUI provides visual feedback for interactions:
+- Buttons highlight on hover
+- Active tabs are visually distinct
+- Text entries show focus state with background changes
+- Sliders update preview values in real-time

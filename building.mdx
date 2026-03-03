@@ -1,0 +1,185 @@
+---
+title: Building from source
+description: How to compile Osiris for Windows and Linux
+---
+
+# Building from source
+
+Osiris can be compiled from source on both Windows and Linux platforms. The build process varies between platforms, so follow the instructions for your operating system.
+
+<Note>
+  Before proceeding, ensure you have installed all [prerequisites](/installation).
+</Note>
+
+## Compiler requirements
+
+Osiris is built with modern C++ and has specific compiler requirements:
+
+- **C++ standard**: C++20
+- **Windows**: Microsoft Visual Studio 2022 with MSVC compiler
+- **Linux**: g++ 11+ or clang++ 18+
+
+## Build configuration
+
+The project uses CMake as its build system with the following configuration:
+
+```cmake CMakeLists.txt
+cmake_minimum_required(VERSION 3.24)
+project(Osiris LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+```
+
+<Tabs>
+  <Tab title="Windows">
+    ## Building on Windows
+
+    Windows builds use Visual Studio's native build system.
+
+    <Steps>
+      <Step title="Open the solution">
+        Navigate to the Osiris source directory and open **Osiris.sln** in Visual Studio 2022.
+      </Step>
+      
+      <Step title="Set build configuration">
+        In Visual Studio, set the build configuration to **Release | x64**:
+        - Use the dropdown menus in the toolbar
+        - Configuration: **Release**
+        - Platform: **x64**
+      </Step>
+      
+      <Step title="Build the solution">
+        Press **Ctrl+Shift+B** or go to **Build** → **Build Solution** in the menu.
+        
+        The build process will compile the source code and generate the DLL.
+      </Step>
+      
+      <Step title="Locate the output">
+        After a successful build, you will find **Osiris.dll** in the output directory:
+        
+        ```
+        x64/Release/Osiris.dll
+        ```
+      </Step>
+    </Steps>
+
+    ### Release build optimizations
+
+    The Windows release build includes several optimizations:
+
+    - No C++ runtime library (CRT) dependency
+    - No static imports
+    - Stack protection disabled (`/GS-`)
+    - Custom entry point (`DllMain`)
+    - No default libraries linked
+
+    ```cmake Source/CMakeLists.txt
+    target_compile_options(Osiris PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4 $<$<CONFIG:Release>:/sdl- /GS->>)
+    target_link_options(Osiris PRIVATE $<$<CONFIG:Release>:/nodefaultlib /ENTRY:"DllMain">)
+    ```
+
+    <Warning>
+      Only use the **Release** configuration for actual injection. Debug builds may have different behavior and larger file sizes.
+    </Warning>
+  </Tab>
+
+  <Tab title="Linux">
+    ## Building on Linux
+
+    Linux builds use CMake with GCC or Clang compilers.
+
+    <Steps>
+      <Step title="Configure with CMake">
+        Navigate to the Osiris source directory and configure the build:
+
+        ```bash
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        ```
+
+        This creates a `build` directory with the necessary build files.
+      </Step>
+      
+      <Step title="Build the library">
+        Compile the source code using all available CPU cores:
+
+        ```bash
+        cmake --build build -j $(nproc --all)
+        ```
+
+        The `-j $(nproc --all)` flag enables parallel compilation for faster build times.
+      </Step>
+      
+      <Step title="Locate the output">
+        After a successful build, you will find **libOsiris.so** in:
+        
+        ```
+        build/Source/libOsiris.so
+        ```
+      </Step>
+    </Steps>
+
+    ### Release build optimizations
+
+    The Linux release build includes aggressive optimizations for stealth:
+
+    - No stack protector
+    - No exceptions
+    - No unwind tables
+    - Minimal C library dependency
+    - Stripped symbols
+
+    ```cmake Source/CMakeLists.txt
+    target_compile_options(Osiris PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-stack-protector -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables>)
+    target_link_options(Osiris PRIVATE -nostdlib)
+    target_link_libraries(Osiris PRIVATE c)
+    ```
+
+    ### Specifying a compiler
+
+    To use a specific compiler, set the `CXX` environment variable before configuring:
+
+    ```bash
+    # Use g++
+    CXX=g++ cmake -DCMAKE_BUILD_TYPE=Release -B build
+
+    # Use clang++
+    CXX=clang++ cmake -DCMAKE_BUILD_TYPE=Release -B build
+    ```
+
+    <Note>
+      The build system automatically strips debug symbols from the release build using the `strip` command if available.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Build artifacts
+
+After a successful build, you will have:
+
+- **Windows**: `Osiris.dll` - Dynamic-link library for injection
+- **Linux**: `libOsiris.so` - Shared object library for injection
+
+Both files are compiled as position-independent code with hidden symbol visibility for security.
+
+## Troubleshooting
+
+### Windows build errors
+
+- **Missing workload**: Ensure the "Desktop development with C++" workload is installed in Visual Studio 2022
+- **Platform mismatch**: Verify you selected **x64** platform, not x86 or ARM64
+- **SDK version**: Update to the latest Windows 10/11 SDK if you encounter SDK-related errors
+
+### Linux build errors
+
+- **CMake version**: Verify you have CMake 3.24 or newer with `cmake --version`
+- **Compiler version**: Ensure g++ 11+ or clang++ 18+ is installed
+- **Missing dependencies**: Install development packages for your distribution
+
+## Next steps
+
+Once you have successfully built Osiris, proceed to:
+
+- [Load Osiris into CS2](/loading)
+- [Configure features](/configuration/overview)

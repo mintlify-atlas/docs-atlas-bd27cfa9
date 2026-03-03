@@ -1,0 +1,317 @@
+---
+title: Memory Pattern Scanning
+description: Pattern-based memory search system for locating game functions and data
+---
+
+Osiris uses a sophisticated compile-time pattern scanning system to locate functions, virtual method tables, and data structures in the game's memory without relying on static imports.
+
+## Overview
+
+Memory patterns are byte sequences that uniquely identify code or data in the game's modules. The pattern system is used to find:
+
+- Function pointers
+- Virtual method tables (VMTs)
+- Global variables
+- Class instances
+
+This approach enables Osiris to work without hardcoded addresses and automatically adapt to game updates.
+
+## Pattern Syntax
+
+Patterns use a string-based format with wildcard support:
+
+```cpp
+// Source/MemoryPatterns/Linux/ClientPatternsLinux.h
+CodePattern{"E5 53 48 83 EC ? 48 8D 1D ? ? ? ? 48 8B 03 48 8B 78 ? 48 8B"}
+```
+
+- Hex bytes: `48 8B 03` - exact match required
+- Wildcards: `?` - matches any byte
+- Operations: `.add(9).abs()` - offset and dereference
+
+## Pattern Finding Architecture
+
+### Pattern Finders
+
+Each game module gets its own pattern finder:
+
+```cpp
+// Source/MemoryPatterns/PatternFinders.h
+struct PatternFinders {
+    PatternFinder<PatternNotFoundLogger> clientPatternFinder;
+    PatternFinder<PatternNotFoundLogger> tier0PatternFinder;
+    PatternFinder<PatternNotFoundLogger> soundSystemPatternFinder;
+    PatternFinder<PatternNotFoundLogger> fileSystemPatternFinder;
+    PatternFinder<PatternNotFoundLogger> panoramaPatternFinder;
+    PatternFinder<PatternNotFoundLogger> sdlPatternFinder;
+    PatternFinder<PatternNotFoundLogger> sceneSystemPatternFinder;
+};
+```
+
+Each finder scans a specific DLL's code section:
+
+```cpp
+// Source/GlobalContext/PartialGlobalContext.h:14
+patternFinders{
+    PatternFinder<PatternNotFoundLogger>{clientDLL.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::TIER0_DLL}.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::SOUNDSYSTEM_DLL}.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::FILESYSTEM_DLL}.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{panoramaDLL.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{sdlDLL.getCodeSection().raw()},
+    PatternFinder<PatternNotFoundLogger>{DynamicLibrary{cs2::SCENESYSTEM_DLL}.getCodeSection().raw()}
+}
+```
+
+### BytePattern Class
+
+The `BytePattern` class handles pattern matching:
+
+```cpp
+// Source/MemorySearch/BytePattern.h
+class BytePattern {
+public:
+    constexpr BytePattern(std::string_view pattern, std::optional<char> wildcardChar = {}) noexcept
+        : pattern{pattern}
+        , wildcardChar{wildcardChar}
+    {
+    }
+
+    [[nodiscard]] bool matches(std::span<const std::byte> bytes) const noexcept
+    {
+        assert(bytes.size() == pattern.size());
+
+        for (std::size_t i = 0; i < bytes.size(); ++i) {
+            if (std::to_integer<char>(bytes[i]) != pattern[i] && pattern[i] != wildcardChar)
+                return false;
+        }
+        return true;
+    }
+};
+```
+
+Key features:
+- Compile-time construction from string literals
+- Wildcard support for flexible matching
+- Efficient byte-by-byte comparison
+
+### PatternFinder Implementation
+
+The core search algorithm:
+
+```cpp
+// Source/MemorySearch/PatternFinder.h:65
+[[nodiscard]] [[NOINLINE]] PatternSearchResult operator()(BytePattern pattern) const noexcept
+{
+    auto patternFinder = HybridPatternFinder{bytes, pattern};
+    const auto found = patternFinder.findNextOccurrence();
+    assert(patternFinder.findNextOccurrence() == nullptr && "Pattern should be unique!");
+    if (!found)
+        NotFoundHandler::onPatternNotFound(pattern);
+    return makeResult(found, pattern.length());
+}
+```
+
+Key aspects:
+- Uses `HybridPatternFinder` for optimized searching
+- Asserts pattern uniqueness (should match exactly once)
+- Logs patterns that aren't found
+- Returns a `PatternSearchResult` for further processing
+
+### Pattern Operations
+
+Patterns support post-processing operations:
+
+```cpp
+// Source/MemorySearch/PatternFinder.h:46
+void findPatterns(PatternPoolView patterns, PatternSearchResultsView results) const noexcept
+{
+    patterns.forEach([patternIndex = std::size_t{0}, results, this](BytePattern pattern, std::uint8_t offset, CodePatternOperation operation) mutable {
+        auto result = operator()(pattern);
+        result.add(offset);
+
+        std::array<std::byte, 8> resultToStore{};
+        if (operation == CodePatternOperation::None) {
+            resultToStore = result.get();
+        } else if (operation == CodePatternOperation::Abs4 || operation == CodePatternOperation::Abs5) {
+            resultToStore = result.abs2(operation == CodePatternOperation::Abs4 ? 4 : 5);
+        } else if (operation == CodePatternOperation::Read) {
+            resultToStore = result.read();
+        }
+        results.store(patternIndex, resultToStore);
+        ++patternIndex;
+    });
+}
+```
+
+Operations:
+- `add(offset)` - Add offset to result address
+- `abs()` - Dereference relative offset (RIP-relative on x64)
+- `read()` - Read pointer at result address
+
+## Pattern Definitions
+
+Patterns are organized by module and entity type:
+
+### Client Patterns Example
+
+```cpp
+// Source/MemoryPatterns/Linux/ClientPatternsLinux.h
+struct ClientPatterns {
+    [[nodiscard]] static consteval auto addClientPatterns(auto clientPatterns) noexcept
+    {
+        return clientPatterns
+            .template addPattern<MainMenuPanelPointer, CodePattern{"E5 53 48 83 EC ? 48 8D 1D ? ? ? ? 48 8B 03 48 8B 78 ? 48 8B"}.add(9).abs()>()
+            .template addPattern<HudPanelPointer, CodePattern{"05 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 40"}.add(1).abs()>()
+            .template addPattern<GlobalVarsPointer, CodePattern{"8D ? ? ? ? ? 48 89 35 ? ? ? ? 48 89 ? ? C3"}.add(9).abs()>()
+            .template addPattern<ViewRenderPointer, CodePattern{"48 8D 05 ? ? ? ? 48 89 38 48 85"}.add(3).abs()>()
+            .template addPattern<LocalPlayerControllerPointer, CodePattern{"48 83 3D ? ? ? ? ? 0F 95 C0 C3"}.add(3).abs(5)>()
+            .template addPattern<ManageGlowSceneObjectPointer, CodePattern{"55 66 48 0F 7E C8"}>()
+            .template addPattern<SetSceneObjectAttributeFloat4, CodePattern{"55 66 0F 6E D6 48 89 E5 53 48"}>();
+    }
+};
+```
+
+Each pattern:
+- Associates a type (`MainMenuPanelPointer`) with a byte pattern
+- Uses compile-time chaining for pattern operations
+- Returns the final address after transformations
+
+## Compile-Time Pattern Pools
+
+Patterns are aggregated at compile time into pools:
+
+```cpp
+// Source/MemoryPatterns/MemoryPatterns.h:29
+constexpr auto kClientPatterns = []() consteval {
+    constexpr auto builder = PatternPoolBuilder<TempPatternPool<2000, 100>>{}
+        .ADD_PATTERNS(BaseModelEntityPatterns)
+        .ADD_PATTERNS(C4Patterns)
+        .ADD_PATTERNS(ClientPatterns)
+        .ADD_PATTERNS(CvarPatterns)
+        .ADD_PATTERNS(EntityPatterns)
+        .ADD_PATTERNS(EntitySystemPatterns)
+        .ADD_PATTERNS(GameRulesPatterns)
+        .ADD_PATTERNS(GameSceneNodePatterns)
+        .ADD_PATTERNS(GlobalVarsPatterns)
+        .ADD_PATTERNS(HostageServicesPatterns)
+        .ADD_PATTERNS(GlowPropertyPatterns)
+        .ADD_PATTERNS(GlowSceneObjectPatterns)
+        .ADD_PATTERNS(MemAllocPatterns)
+        // ... more patterns ...
+        .ADD_PATTERNS(WeaponVDataPatterns);
+    return PatternPool<>::from<builder>();
+}();
+```
+
+Similar pools exist for:
+- `kSceneSystemPatterns`
+- `kTier0Patterns`
+- `kFileSystemPatterns`
+- `kSoundSystemPatterns`
+- `kPanoramaPatterns`
+
+## Pattern Search Results
+
+Search results are stored and accessed by type:
+
+```cpp
+// Source/MemoryPatterns/AllMemoryPatternSearchResults.h
+struct AllMemoryPatternSearchResults {
+    explicit AllMemoryPatternSearchResults(const MemoryPatterns& memoryPatterns)
+        : clientPatternSearchResults{memoryPatterns.patternFinders.clientPatternFinder.findPatterns(kClientPatterns)}
+        , sceneSystemPatternSearchResults{memoryPatterns.patternFinders.sceneSystemPatternFinder.findPatterns(kSceneSystemPatterns)}
+        , tier0PatternSearchResults{memoryPatterns.patternFinders.tier0PatternFinder.findPatterns(kTier0Patterns)}
+        , fileSystemPatternSearchResults{memoryPatterns.patternFinders.fileSystemPatternFinder.findPatterns(kFileSystemPatterns)}
+        , soundSystemPatternSearchResults{memoryPatterns.patternFinders.soundSystemPatternFinder.findPatterns(kSoundSystemPatterns)}
+        , panoramaPatternSearchResults{memoryPatterns.patternFinders.panoramaPatternFinder.findPatterns(kPanoramaPatterns)}
+    {
+    }
+
+    template <typename PatternType>
+    [[nodiscard]] auto get() const noexcept
+    {
+        if constexpr (decltype(kClientPatterns)::PatternPool::PatternTypes::template contains<PatternType>())
+            return clientPatternSearchResults.get<PatternType>();
+        else if constexpr (decltype(kSceneSystemPatterns)::PatternPool::PatternTypes::template contains<PatternType>())
+            return sceneSystemPatternSearchResults.get<PatternType>();
+        // ... check other pools ...
+    }
+};
+```
+
+Type-safe access:
+```cpp
+auto viewRender = patternSearchResults.get<ViewRenderPointer>();
+auto hudPanel = patternSearchResults.get<HudPanelPointer>();
+```
+
+## Platform-Specific Patterns
+
+Patterns differ between Windows and Linux due to different calling conventions and compiler optimizations:
+
+```
+Source/MemoryPatterns/
+├── Linux/
+│   ├── ClientPatternsLinux.h
+│   ├── PanelPatternsLinux.h
+│   └── ...
+└── Windows/
+    ├── ClientPatternsWindows.h
+    ├── PanelPatternsWindows.h
+    └── ...
+```
+
+The correct set is included based on the platform:
+
+```cpp
+// Source/MemoryPatterns/MemoryPatterns.h
+#if IS_WIN64()
+#include "Windows/WindowsPatterns.h"
+#elif IS_LINUX()
+#include "Linux/LinuxPatterns.h"
+#endif
+```
+
+## Error Handling
+
+When patterns aren't found:
+
+```cpp
+if (!found)
+    NotFoundHandler::onPatternNotFound(pattern);
+```
+
+The `PatternNotFoundLogger` logs the missing pattern for debugging. The application continues execution but features requiring that pattern will be disabled.
+
+## Performance Considerations
+
+- All pattern finding happens once during initialization
+- Results are cached in `AllMemoryPatternSearchResults`
+- Compile-time pattern validation catches errors early
+- Hybrid search algorithm optimizes for patterns with/without wildcards
+- Patterns are searched in parallel across modules
+
+## Example Usage
+
+Finding the ViewRender instance:
+
+```cpp
+// 1. Define pattern type
+struct ViewRenderPointer;
+
+// 2. Add pattern for your platform
+// In ClientPatternsLinux.h:
+.template addPattern<ViewRenderPointer, 
+    CodePattern{"48 8D 05 ? ? ? ? 48 89 38 48 85"}.add(3).abs()>()
+
+// 3. Access result
+auto viewRenderPtr = patternSearchResults.get<ViewRenderPointer>();
+if (viewRenderPtr)
+    viewRenderHook.install(*viewRenderPtr);
+```
+
+## Related Topics
+
+- [Architecture](/technical/architecture) - Overall system design
+- [Hooking](/technical/hooking) - Using pattern results for hooks

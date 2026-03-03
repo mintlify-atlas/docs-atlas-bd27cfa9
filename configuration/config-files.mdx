@@ -1,0 +1,229 @@
+---
+title: Config Files
+description: Understand the config file format and storage location
+---
+
+Osiris stores all settings in a JSON configuration file named `default.cfg`. This file is automatically created the first time you change a setting.
+
+## File Location
+
+Configuration files are stored in platform-specific directories:
+
+### Windows
+
+```
+%appdata%\OsirisCS2\configs\default.cfg
+```
+
+Expanded path:
+```
+C:\Users\YourUsername\AppData\Roaming\OsirisCS2\configs\default.cfg
+```
+
+### Linux
+
+```
+$HOME/OsirisCS2/configs/default.cfg
+```
+
+Expanded path:
+```
+/home/yourusername/OsirisCS2/configs/default.cfg
+```
+
+## File Format
+
+The configuration file uses JSON format with a hierarchical structure. Here's an example:
+
+```json
+{
+  "Combat": {
+    "NoScopeInaccuracyVis": {
+      "Enabled": true
+    }
+  },
+  "Hud": {
+    "BombTimer": {
+      "Enabled": true
+    },
+    "BombDefuseAlert": {
+      "Enabled": true
+    },
+    "PreserveKillfeed": {
+      "Enabled": false
+    },
+    "PostRoundTimer": {
+      "Enabled": true
+    },
+    "BombPlantAlert": {
+      "Enabled": true
+    }
+  },
+  "Visuals": {
+    "ModelGlow": {
+      "Enabled": true,
+      "Players": {
+        "Enabled": true,
+        "OnlyEnemies": true,
+        "ColorMode": 0
+      },
+      "Weapons": true,
+      "DroppedBomb": false,
+      "TickingBomb": true,
+      "DefuseKits": false,
+      "GrenadeProjectiles": true,
+      "Hues": {
+        "PlayerBlue": 210,
+        "PlayerGreen": 120,
+        "PlayerYellow": 55,
+        "PlayerOrange": 15,
+        "PlayerPurple": 270,
+        "TeamT": 35,
+        "TeamCT": 220,
+        "LowHealth": 0,
+        "HighHealth": 120,
+        "Enemy": 0,
+        "Ally": 120,
+        "Molotov": 30,
+        "Flashbang": 210,
+        "HEGrenade": 330,
+        "SmokeGrenade": 120,
+        "DroppedBomb": 0,
+        "TickingBomb": 0,
+        "DefuseKit": 180
+      }
+    },
+    "OutlineGlow": {
+      "Enabled": false,
+      "Players": {
+        "Enabled": false,
+        "OnlyEnemies": true,
+        "ColorMode": 0
+      },
+      "Weapons": false,
+      "DroppedBomb": false,
+      "TickingBomb": false,
+      "DefuseKits": false,
+      "Hostages": false,
+      "GrenadeProjectiles": false,
+      "Hues": {
+        "PlayerBlue": 210,
+        "PlayerGreen": 120,
+        "PlayerYellow": 55,
+        "PlayerOrange": 15,
+        "PlayerPurple": 270,
+        "TeamT": 35,
+        "TeamCT": 220,
+        "LowHealth": 0,
+        "HighHealth": 120,
+        "Enemy": 0,
+        "Ally": 120,
+        "Molotov": 30,
+        "Flashbang": 210,
+        "HEGrenade": 330,
+        "SmokeGrenade": 120,
+        "DroppedBomb": 0,
+        "TickingBomb": 0,
+        "DefuseKit": 180,
+        "Hostage": 0
+      }
+    },
+    "PlayerInfoInWorld": {
+      "Enabled": true,
+      "OnlyEnemies": true,
+      "PlayerPositionArrow": {
+        "Enabled": true,
+        "ColorMode": 0
+      },
+      "Health": {
+        "Enabled": true,
+        "ColorMode": 0
+      },
+      "ActiveWeaponIcon": true,
+      "BombCarrierIcon": true,
+      "BombPlantIcon": true,
+      "ActiveWeaponAmmo": true,
+      "BombDefuseIcon": true,
+      "HostagePickupIcon": true,
+      "HostageRescueIcon": true,
+      "BlindedIcon": true
+    },
+    "ViewmodelMod": {
+      "Enabled": false,
+      "ModifyFov": false,
+      "Fov": 68
+    }
+  },
+  "Sound": {
+    "Visualizations": {
+      "Footsteps": {
+        "Enabled": false
+      },
+      "BombPlant": {
+        "Enabled": false
+      },
+      "BombBeep": {
+        "Enabled": false
+      },
+      "BombDefuse": {
+        "Enabled": false
+      },
+      "WeaponScope": {
+        "Enabled": false
+      },
+      "WeaponReload": {
+        "Enabled": false
+      }
+    }
+  }
+}
+```
+
+## Data Types
+
+### Boolean Values
+
+Most toggles are stored as `true` or `false`:
+
+```json
+"Enabled": true
+```
+
+### Unsigned Integers
+
+Numeric values are stored as integers:
+
+- **Color modes**: `0`, `1`, `2`, `3` (representing dropdown options)
+- **Hue values**: `0` to `359` (degrees on the color wheel)
+- **FOV values**: `40` to `90` (viewmodel field of view)
+
+```json
+"ColorMode": 0,
+"Fov": 68,
+"PlayerBlue": 210
+```
+
+## Buffer Size
+
+The configuration system uses a 4096-byte buffer for file operations. Config files must fit within this limit. The current schema comfortably fits within this constraint.
+
+## Atomic Writes
+
+To prevent corruption, Osiris uses atomic file writes:
+
+1. Configuration is written to `default.cfg.new`
+2. The temporary file is renamed to `default.cfg`
+3. The rename operation is atomic at the OS level
+
+This ensures the config file is never left in a partially-written state.
+
+## Manual Editing
+
+You can manually edit the config file with a text editor, but:
+
+- Ensure the JSON syntax is valid
+- Use correct data types for each field
+- Keep numeric values within valid ranges
+- The file will be overwritten when you change settings in the GUI
+
+For safety, make a backup before manually editing.

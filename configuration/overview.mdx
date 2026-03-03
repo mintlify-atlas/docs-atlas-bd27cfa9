@@ -1,0 +1,74 @@
+---
+title: Configuration Overview
+description: Learn how Osiris stores and manages settings
+---
+
+Osiris uses a configuration system to persist all feature settings between sessions. All changes made through the GUI are automatically saved to disk.
+
+## Configuration Architecture
+
+The configuration system is built around several key components:
+
+### Config Variables
+
+Each feature exposes configuration variables that store settings. These variables support multiple data types:
+
+- **Boolean** - On/off toggles for features (`true` or `false`)
+- **Unsigned integers** - Numeric values for hue sliders, FOV settings, and color modes
+- **Enums** - Predefined choices (e.g., "Enemies", "All Players", "Off")
+- **Range-constrained values** - Numeric values with minimum and maximum bounds
+
+### Automatic Saving
+
+When you change a setting in the GUI, Osiris automatically:
+
+1. Updates the configuration variable in memory
+2. Schedules an auto-save operation
+3. Serializes all settings to JSON format
+4. Writes the configuration file to disk
+
+This ensures your settings are never lost, even if the game crashes.
+
+### Configuration Schema
+
+Settings are organized into a hierarchical JSON structure with four main sections:
+
+- **Combat** - Combat-related features like no-scope inaccuracy visualization
+- **Hud** - HUD enhancements including bomb timers, killfeed preservation, and alerts
+- **Visuals** - Visual features like model glow, outline glow, player info displays, and viewmodel modifications
+- **Sound** - Sound visualizations for footsteps, bomb events, and weapon sounds
+
+## File Operations
+
+The configuration system performs two types of file operations:
+
+### Load Operation
+
+1. Opens the config file for reading
+2. Reads up to 4096 bytes into a buffer
+3. Parses the JSON structure
+4. Updates all configuration variables
+5. Refreshes the GUI to reflect loaded values
+
+### Save Operation
+
+1. Serializes all configuration variables to JSON
+2. Creates a temporary file (`default.cfg.new`)
+3. Writes the configuration data
+4. Atomically renames the temporary file to `default.cfg`
+
+This atomic rename ensures the configuration file is never corrupted, even if the write operation is interrupted.
+
+## Default Values
+
+Each configuration variable has a default value defined in the source code. You can restore all settings to their defaults using the "Restore Defaults" button in the GUI.
+
+## Platform Differences
+
+The configuration system works identically on Windows and Linux, with platform-specific implementations for:
+
+- File path handling (backslashes on Windows, forward slashes on Linux)
+- Directory creation
+- File I/O operations
+
+Both platforms store configurations in the same JSON format, making config files portable between operating systems.

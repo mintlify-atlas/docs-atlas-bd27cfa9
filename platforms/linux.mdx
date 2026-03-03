@@ -1,0 +1,309 @@
+---
+title: Linux
+description: Linux-specific build instructions, injection methods, and platform details
+---
+
+## Overview
+
+Osiris supports Linux distributions with modern kernel versions. The Linux build outputs **libOsiris.so** which must be injected into the CS2 game process using `gdb` or a custom injector.
+
+## Prerequisites
+
+- **CMake 3.24** or newer
+- **g++ 11 or newer** OR **clang++ 18 or newer**
+- Git (for cloning the repository)
+- Standard build tools (make, binutils)
+
+### Supported Compilers
+
+<Tabs>
+  <Tab title="GCC">
+    Supported versions:
+    - g++-11 (minimum)
+    - g++-12
+    - g++-13
+    - g++-14
+    - g++-15
+
+    Install on Ubuntu:
+    ```bash
+    sudo apt install g++-11  # or higher version
+    ```
+  </Tab>
+  <Tab title="Clang">
+    Supported versions:
+    - clang++-18 (minimum)
+    - clang++-19
+    - clang++-20
+    - clang++-21
+
+    Install on Ubuntu:
+    ```bash
+    # Download LLVM install script
+    wget https://apt.llvm.org/llvm.sh
+    chmod +x llvm.sh
+    sudo ./llvm.sh 18  # or higher version
+    ```
+  </Tab>
+</Tabs>
+
+## Building from Source
+
+### Configure with CMake
+
+<Tabs>
+  <Tab title="GCC">
+    ```bash
+    # Release build
+    cmake -DCMAKE_BUILD_TYPE=Release -B build
+
+    # Debug build
+    cmake -DCMAKE_BUILD_TYPE=Debug -B build
+    ```
+  </Tab>
+  <Tab title="Clang">
+    ```bash
+    # Specify Clang compiler
+    CXX=clang++-18 cmake -DCMAKE_BUILD_TYPE=Release -B build
+    ```
+  </Tab>
+  <Tab title="With Tests">
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DENABLE_TESTS="unit;functional" \
+          -B build
+    ```
+  </Tab>
+</Tabs>
+
+### Build
+
+```bash
+cmake --build build -j $(nproc --all)
+```
+
+The `-j $(nproc --all)` flag enables parallel compilation using all CPU cores.
+
+## Output File
+
+The Linux build produces **libOsiris.so**, a shared object library.
+
+File location:
+```
+build/Source/libOsiris.so
+```
+
+## Injection Methods
+
+### GDB Injection (Standard)
+
+The recommended injection method uses GDB to load the library:
+
+```bash
+cd build/Source/
+sudo gdb -batch-silent -p $(pidof cs2) -ex "call (void*)dlopen(\"$PWD/libOsiris.so\", 2)"
+```
+
+<Warning>
+  **VAC Detection Risk**
+  
+  This injection method **might be detected** by VAC because `gdb` is visible under `TracerPid` in `/proc/$(pidof cs2)/status` for the duration of the injection.
+  
+  Consider using alternative injection methods for reduced detection risk.
+</Warning>
+
+### Entry Point
+
+On Linux, Osiris initializes through a constructor function:
+
+```cpp
+void __attribute__((constructor)) DllEntryPoint()
+{
+    GlobalContext::initializeInstance();
+}
+```
+
+See dllmain.cpp:35-38
+
+This function is automatically called when the shared object is loaded via `dlopen()`.
+
+## Platform-Specific Implementation
+
+### Linux Platform API
+
+Osiris uses custom Linux API wrappers located in `Source/Platform/Linux/`:
+
+- **LinuxPlatformApiImpl.h** - Core platform API implementation
+- **LinuxDynamicLibrary.h** - Dynamic library loading via dlopen/dlsym
+- **UserHomeFolderPath.h** - Configuration file path resolution
+- **FileSystem/** - File I/O operations
+- **RTTI/** - Runtime type information parsing for virtual method tables
+
+### Configuration Storage
+
+Configuration files are stored in:
+
+```
+$HOME/OsirisCS2/configs/default.cfg
+```
+
+The path is determined using the `HOME` environment variable:
+
+```cpp
+if (const auto home = LinuxPlatformApi::getenv("HOME"))
+    return ConstString{ home };
+```
+
+See Source/Platform/Linux/UserHomeFolderPath.h:17
+
+### Technical Features
+
+- No heap memory allocations
+- No threads created
+- Exception-free implementation
+- Direct system calls for file operations
+- ELF parsing for dynamic library introspection
+- RTTI parsing for virtual method table location
+
+## Build Configurations
+
+<Tabs>
+  <Tab title="Release">
+    Optimized build:
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Release -B build
+    cmake --build build -j $(nproc --all)
+    ```
+    
+    Features:
+    - Full optimizations enabled
+    - Minimal binary size
+    - No debugging symbols
+    - Best performance
+  </Tab>
+  <Tab title="Debug">
+    Development build:
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Debug -B build
+    cmake --build build -j $(nproc --all)
+    ```
+    
+    Features:
+    - Debugging symbols included
+    - Runtime checks enabled
+    - Slower execution
+    - Easier to debug with GDB
+  </Tab>
+  <Tab title="Unity Build">
+    Faster compilation:
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_UNITY_BUILD=ON \
+          -DCMAKE_UNITY_BUILD_BATCH_SIZE=4 \
+          -B build
+    cmake --build build -j $(nproc --all)
+    ```
+    
+    Combines multiple source files to reduce compilation time.
+  </Tab>
+</Tabs>
+
+## Common Issues
+
+### CMake Version Too Old
+
+If you see "CMake 3.24 or higher is required":
+
+```bash
+# Add Kitware APT repository for latest CMake
+wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | sudo apt-key add -
+sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
+sudo apt update
+sudo apt install cmake
+```
+
+### Compiler Not Found
+
+If CMake can't find your compiler:
+
+```bash
+# Explicitly specify compiler
+CXX=/usr/bin/g++-11 cmake -DCMAKE_BUILD_TYPE=Release -B build
+
+# Or for Clang
+CXX=/usr/bin/clang++-18 cmake -DCMAKE_BUILD_TYPE=Release -B build
+```
+
+### Injection Failed
+
+If GDB injection fails:
+
+```bash
+# Ensure CS2 is running
+pidof cs2
+
+# Check if you have sufficient permissions
+sudo -v
+
+# Verify library path is correct
+ls -lh $PWD/libOsiris.so
+
+# Try with absolute path
+sudo gdb -batch-silent -p $(pidof cs2) -ex "call (void*)dlopen(\"/absolute/path/to/libOsiris.so\", 2)"
+```
+
+### Missing Dependencies
+
+If build fails with missing headers:
+
+```bash
+# Install build essentials
+sudo apt install build-essential cmake git
+
+# For g++
+sudo apt install g++-11
+
+# For clang
+sudo apt install clang-18
+```
+
+## VAC Detection Considerations
+
+<Warning>
+  **VAC Risk on Linux**
+  
+  The GDB injection method may be detectable because:
+  - GDB attaches as a debugger (visible in `/proc/[pid]/status`)
+  - The `TracerPid` field shows the debugger process
+  - VAC may scan for debugging indicators
+  
+  For reduced risk, consider:
+  - Using manual mapping injectors
+  - Avoiding GDB-based injection in competitive matches
+  - Monitoring VAC ban reports from the community
+</Warning>
+
+## Testing
+
+Osiris includes comprehensive tests:
+
+```bash
+# Configure with tests enabled
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DENABLE_TESTS="unit;functional" \
+      -B build
+
+# Build tests
+cmake --build build --target UnitTests -j $(nproc --all)
+cmake --build build --target FunctionalTests -j $(nproc --all)
+
+# Run tests
+ctest -R ^Unit --test-dir build --output-on-failure -j $(nproc --all)
+ctest -R ^Functional --test-dir build --output-on-failure -j $(nproc --all)
+```
+
+## See Also
+
+- [Windows Platform](/platforms/windows) - Windows-specific instructions
+- [Building](/building) - General build information
+- [Installation](/installation) - Installation and setup

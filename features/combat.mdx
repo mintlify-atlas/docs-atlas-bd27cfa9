@@ -1,0 +1,62 @@
+---
+title: Combat Features
+description: Combat-related features for enhanced gameplay in Counter-Strike 2
+---
+
+Combat features in Osiris focus on providing better feedback and visualization during combat situations, particularly for weapon handling.
+
+## Sniper Rifles
+
+Features specific to sniper rifle usage.
+
+<Accordion title="No Scope Inaccuracy Visualization">
+  <Note>
+    **Location:** Combat > Sniper Rifles > No Scope
+  </Note>
+
+  This feature provides a visual representation of bullet spread inaccuracy when using a sniper rifle without scoping.
+
+  ### How It Works
+
+  When enabled, a circular overlay appears on your crosshair showing the potential bullet spread area when firing a sniper rifle without being scoped. The circle:
+  
+  - Only appears when holding a sniper rifle (AWP, SSG 08, SCAR-20, G3SG1)
+  - Only visible when **not scoped**
+  - Uses your crosshair color for consistency
+  - Size dynamically adjusts based on weapon inaccuracy
+  - Updates in real-time as you move or change stance
+
+  ### Configuration
+
+  **Visualize Inaccuracy When Not Using a Scope**
+  - Options: `Yes`, `No`
+  - Default: `No`
+  - When set to `Yes`, the inaccuracy circle is displayed
+
+  ### Visual Design
+
+  The visualization consists of:
+  - A circular border showing the outer edge of the spread area
+  - Semi-transparent fill indicating the potential hit zone
+  - Color matches your configured crosshair color (fallback: white if no crosshair color set)
+  - Border width: 2 pixels with 255 alpha
+  - Background fill: Uses crosshair color with 100 alpha transparency
+
+  ### Use Cases
+
+  This feature is particularly useful for:
+  - Understanding when to avoid no-scope shots at range
+  - Judging close-range no-scope viability
+  - Training muscle memory for scoping discipline
+  - Quick situational awareness of accuracy state
+
+  ### Technical Details
+
+  The circle height is calculated from the weapon's bullet inaccuracy value transformed through the view-to-projection matrix. The width automatically maintains aspect ratio (100% height-percentage) to form a perfect circle centered on your crosshair.
+
+  **Implementation:** `~/workspace/source/Source/Features/Combat/SniperRifles/NoScopeInaccuracyVis/NoScopeInaccuracyVis.h:19`
+</Accordion>
+
+## Future Combat Features
+
+Additional combat features may be added in future updates. The modular architecture allows for easy expansion of weapon-specific and combat-related functionality.
